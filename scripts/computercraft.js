@@ -1,6 +1,6 @@
 
 //  
-//  WebCC
+//  Mimic
 //  Made by 1lann and GravityScore
 //  
 
@@ -18,6 +18,8 @@ var version = "CraftOS 1.5 (Web Alpha)";
 // Lua State
 var C = Lua5_1.C;
 var L = C.lua_open();
+var doShutdown = false;
+var doReboot = false;
 
 
 // Thread
@@ -81,6 +83,11 @@ var term = {
 
 
 var loadAPIs = function() {
+	Lua5_1.Runtime.functionPointers = [];
+	for (var i = 1; i <= 256; i++) {
+		Lua5_1.Runtime.functionPointers.push(null);
+	}
+
 	var apis = {
 		"bit": bitAPI,
 		"fs": fsAPI,
@@ -168,7 +175,13 @@ resumeThread = function() {
 			coroutineClock = Date.now();
 			var resp = C.lua_resume(thread.main, argumentsNumber);
 			if (resp == C.LUA_YIELD) {
-
+				if (doShutdown) {
+					shutdown();
+					return;
+				} else if (doReboot) {
+					reboot();
+					return;
+				}
 			} else if (resp == 0) {
 				clearInterval(threadLoopID);
 				thread.alive = false;
@@ -236,15 +249,71 @@ var run = function() {
 		render.cursorBlink();
 	}, 500);
 
+	thread.main = C.lua_newthread(L);
+	C.luaL_loadstring(thread.main, getCode());
+	thread.alive = true;
+
 	startClock = Date.now();
+
+	initialization();
+}
+
+var shutdown = function() {
+	coroutineClock = Date.now();
+
+	C.lua_close(L);
+	L = null;
+	thread = {
+		"main": null,
+		"alive": false,
+	};
+	term = {
+		"width": 51,
+		"height": 19,
+		"cursorX": 1,
+		"cursorY": 1,
+		"textColor": "#ffffff",
+		"backgroundColor": "#000000",
+		"cursorBlink": false,
+		"cursorFlash": true,
+	};
+	computer = {
+		"id": 0,
+		"label": null,
+
+		"eventStack": [],
+		"lastTimerID": 0,
+	};
+	doShutdown = false;
+	doReboot = false;
+	for (var i = 1; i <= term.height; i++) {
+		render.text(1, i, " ".repeat(term.width), "#000000", "#000000");
+	}
+}
+
+var boot = function() {
+	if (thread.alive || L) {
+		console.error("Cannot boot if computer is still on!")
+		return;
+	}
+	coroutineClock = Date.now();
+
+	L = C.lua_open();
+	loadAPIs();
 
 	thread.main = C.lua_newthread(L);
 	C.luaL_loadstring(thread.main, getCode());
 	thread.alive = true;
 
+	startClock = Date.now();
+
 	initialization();
 }
 
+var reboot = function() {
+	shutdown();
+	boot();
+}
 
 var main = function() {
 	setup(function() {
