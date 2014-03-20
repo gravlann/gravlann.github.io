@@ -71,8 +71,8 @@ var term = {
 	"height": 19,
 	"cursorX": 1,
 	"cursorY": 1,
-	"textColor": "#ffffff",
-	"backgroundColor": "#000000",
+	"textColor": "f",
+	"backgroundColor": "0",
 	"cursorBlink": false,
 	"cursorFlash": true,
 };
@@ -83,11 +83,6 @@ var term = {
 
 
 var loadAPIs = function() {
-	Lua5_1.Runtime.functionPointers = [];
-	for (var i = 1; i <= 256; i++) {
-		Lua5_1.Runtime.functionPointers.push(null);
-	}
-
 	var apis = {
 		"bit": bitAPI,
 		"fs": fsAPI,
@@ -97,6 +92,11 @@ var loadAPIs = function() {
 		"term": termAPI,
 		"mimic": testAPI,
 	};
+
+	Lua5_1.Runtime.functionPointers = [];
+	for (var i = 1; i <= 512; i++) {
+		Lua5_1.Runtime.functionPointers.push(null);
+	}
 
 	C.luaL_openlibs(L);
 
@@ -117,17 +117,18 @@ var loadAPIs = function() {
 
 
 
-//  ----------------  Main  ----------------  //
+//  ----------------  Threading  ----------------  //
 
 
 callLua = function(data) {
 	C.luaL_dostring(L, data);
 }
 
+
 threadHang = function() {
 	thread.alive = false;
 	for (var i = 1; i <= term.height; i++) {
-		render.text(1, i, " ".repeat(term.width), "#000000", "#0000aa");
+		render.text(1, i, " ".repeat(term.width), "0", "4");
 	}
 
 	var errorOne = "The Lua thread had hung, and has been";
@@ -139,12 +140,13 @@ threadHang = function() {
 	var startThree = Math.round((term.width / 2) - ((errorThree.length) / 2));
 	var startFour = Math.round((term.width / 2) - ((errorFour.length) / 2));
 	term.cursorBlink = false;
-	render.text(16, 7, "FATAL : THREAD HANG", "#0000aa", "#ffffff");
-	render.text(startOne, 9, errorOne, "#ffffff", "#0000aa");
-	render.text(startTwo, 10, errorTwo, "#ffffff", "#0000aa");
-	render.text(startThree, 11, errorThree, "#ffffff", "#0000aa");
-	render.text(startFour, 13, errorFour, "#ffffff", "#0000aa");
+	render.text(16, 7, "FATAL : THREAD HANG", "4", "f");
+	render.text(startOne, 9, errorOne, "f", "4");
+	render.text(startTwo, 10, errorTwo, "f", "4");
+	render.text(startThree, 11, errorThree, "f", "4");
+	render.text(startFour, 13, errorFour, "f", "4");
 }
+
 
 resumeThread = function() {
 	if (!thread.alive) {
@@ -201,7 +203,7 @@ resumeThread = function() {
 
 var initialization = function() {
 	for (var i = 1; i <= term.height; i++) {
-		render.text(1, i, " ".repeat(term.width), "#ffffff", "#000000");
+		render.text(1, i, " ".repeat(term.width), "f", "0");
 	}
 
 	var resp = C.lua_resume(thread.main, 0);
@@ -214,29 +216,47 @@ var initialization = function() {
 		console.log("Thread closed");
 
 		for (var i = 1; i <= term.height; i++) {
-			render.text(1, i, " ".repeat(term.width), "#ffffff", "#0000aa");
+			render.text(1, i, " ".repeat(term.width), "f", "4");
 		}
 
 		var startPos = Math.round((term.width / 2) - ((7 + errorCode.length) / 2));
 		term.cursorBlink = false;
-		render.text(16, 7, "FATAL : BIOS ERROR", "#0000aa", "#ffffff");
-		render.text(startPos, 9, "ERROR: " + errorCode, "#ffffff", "#0000aa");
+		render.text(16, 7, "FATAL : BIOS ERROR", "4", "f");
+		render.text(startPos, 9, "ERROR: " + errorCode, "f", "4");
 
 		if (trace) {
 			console.log("Trace: " + trace);
-			render.text(9, 11, "-- SEE CONSOLE FOR STACK TRACE --", "#ffffff", "#0000aa");
+			render.text(9, 11, "-- SEE CONSOLE FOR STACK TRACE --", "f", "4");
 		}
 	}
 }
 
 
-var setup = function(callback) {
-	filesystem.setup(function(err) {
-		if (err) {
-			return;
-		}
 
-		callback();
+//  ----------------  Main  ----------------  //
+
+
+var setup = function(callback) {
+	// waitForWebfonts(["minecraftia"], function() {
+	// 	setTimeout(function() {
+	// 		filesystem.setup(function(err) {
+	// 			if (err) {
+	// 				return;
+	// 			}
+
+	// 			callback();
+	// 		});
+	// 	}, 500);
+	// });
+	
+	render.setup(function() {
+		filesystem.setup(function(err) {
+			if (err) {
+				return;
+			}
+
+			callback();
+		});
 	});
 }
 
@@ -254,41 +274,9 @@ var run = function() {
 	thread.alive = true;
 
 	startClock = Date.now();
-
-	initialization();
-}
-
-var shutdown = function() {
 	coroutineClock = Date.now();
 
-	C.lua_close(L);
-	L = null;
-	thread = {
-		"main": null,
-		"alive": false,
-	};
-	term = {
-		"width": 51,
-		"height": 19,
-		"cursorX": 1,
-		"cursorY": 1,
-		"textColor": "#ffffff",
-		"backgroundColor": "#000000",
-		"cursorBlink": false,
-		"cursorFlash": true,
-	};
-	computer = {
-		"id": 0,
-		"label": null,
-
-		"eventStack": [],
-		"lastTimerID": 0,
-	};
-	doShutdown = false;
-	doReboot = false;
-	for (var i = 1; i <= term.height; i++) {
-		render.text(1, i, " ".repeat(term.width), "#000000", "#000000");
-	}
+	initialization();
 }
 
 var boot = function() {
@@ -310,10 +298,42 @@ var boot = function() {
 	initialization();
 }
 
+
+var shutdown = function() {
+	coroutineClock = Date.now();
+
+	if (L) {
+		C.lua_close(L);
+	}
+
+	for (var i = 1; i <= term.height; i++) {
+		render.text(1, i, " ".repeat(term.width), "0", "0");
+	}
+
+	L = null;
+
+	doShutdown = false;
+	doReboot = false;
+
+	thread.main = null;
+	thread.alive = false;
+
+	term.cursorX = 1;
+	term.cursorY = 1;
+	term.textColor = "f";
+	term.backgroundColor = "0";
+	term.cursorBlink = false;
+
+	computer.eventStack = [];
+	computer.lastTimerID = 0;
+}
+
+
 var reboot = function() {
 	shutdown();
 	boot();
 }
+
 
 var main = function() {
 	setup(function() {

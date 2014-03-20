@@ -1,6 +1,6 @@
 
 //  
-//  WebCC
+//  Mimic
 //  Made by 1lann and GravityScore
 //  
 
@@ -37,14 +37,14 @@ termAPI.write = function(L) {
 
 termAPI.clear = function(L) {
 	for (var i = 1; i <= term.height; i++) {
-		render.text(1, i, " ".repeat(term.width), "#000000", term.backgroundColor);
+		render.text(1, i, " ".repeat(term.width), "0", term.backgroundColor);
 	}
 	return 0;
 }
 
 
 termAPI.clearLine = function(L) {
-	render.text(1, term.cursorY, " ".repeat(term.width), "#000000", term.backgroundColor);
+	render.text(1, term.cursorY, " ".repeat(term.width), "0", term.backgroundColor);
 	return 0;
 }
 
@@ -85,19 +85,17 @@ termAPI.setCursorBlink = function(L) {
 
 
 termAPI.setTextColor = function(L) {
-	// Not properly supported
 	var color = C.luaL_checkint(L, 1);
 	var hex = 15 - (Math.log(color) / Math.log(2));
-	term.textColor = globals.colors[hex.toString(16)];
+	term.textColor = hex.toString(16);
 	return 0;
 }
 
 
 termAPI.setBackgroundColor = function(L) {
-	// Not properly supported
 	var color = C.luaL_checkint(L, 1);
 	var hex = 15 - (Math.log(color) / Math.log(2));
-	term.backgroundColor = globals.colors[hex.toString(16)];
+	term.backgroundColor = hex.toString(16);
 	return 0;
 }
 
@@ -118,10 +116,18 @@ termAPI.getSize = function(L) {
 
 termAPI.scroll = function(L) {
 	var amount = C.luaL_checkint(L, 1);
-	var imageData = context.getImageData(4, 4, canvas.width - 8, canvas.height - 8);
+	var imageData = context.getImageData(config.borderWidth, config.borderHeight, 
+		canvas.width - config.borderWidth * 2, 
+		canvas.height - config.borderHeight * 2);
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
-	context.putImageData(imageData, 4, config.cellHeight * amount * -1 + 4);
+	context.putImageData(imageData, config.borderWidth, config.cellHeight * (amount - 1) * -1 + config.borderHeight);
+
+	context.beginPath();
+	context.rect(0, 0, canvas.width, config.borderHeight);
+	context.fillStyle = "#000000";
+	context.fill();
+
 	return 0;
 }
 

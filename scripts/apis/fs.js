@@ -1,20 +1,23 @@
 
 //  
-//  WebCC
+//  Mimic
 //  Made by 1lann and GravityScore
 //  
 
 
 
+var fs;
 var fsAPI = {};
-var filer = null;
-
 var filesystem = {};
-var callID = 0;
 
 var readOnly = [
 	"/*/rom",
 ];
+
+
+triggerGUIUpdate = function() {
+
+}
 
 
 
@@ -22,16 +25,13 @@ var readOnly = [
 
 
 filesystem.setup = function(callback) {
-	filer = new Filer();
-	filer.init({"persistent": true, "size": 4 * 1024 * 1024}, function(fs) {
-		callback(null);
-	}, function(err) {
-		console.log("Failed to load filesystem!");
-		console.log("Unable to start WebCC!");
-		console.log(err);
+	BrowserFS.install(window);
 
-		callback(err);
-	});
+	var lsfs = new BrowserFS.FileSystem.LocalStorage();
+	BrowserFS.initialize(lsfs);
+	fs = require("fs");
+
+	callback(null);
 }
 
 
@@ -99,50 +99,6 @@ filesystem.sanitise = function(path) {
 }
 
 
-filesystem.exists = function(path, callback) {
-	path = filesystem.sanitise(path);
-
-	var dir = path.substring(0, path.lastIndexOf("/"));
-	filer.ls(dir, function(items) {
-		for (var i in items) {
-			var item = items[i];
-			if (item.fullPath == path) {
-				callback(true);
-				return;
-			}
-		}
-
-		callback(false);
-	}, function(err) {
-		callback(false);
-	});
-}
-
-
-filesystem.isDir = function(path, callback) {
-	path = filesystem.sanitise(path);
-	if (path == "/") {
-		callback(true);
-		return;
-	}
-
-	var dir = path.substring(0, path.lastIndexOf("/"));
-	filer.ls(dir, function(items) {
-		for (var i in items) {
-			var item = items[i];
-			if (item.fullPath == path && item.isDirectory) {
-				callback(true);
-				return;
-			}
-		}
-
-		callback(false);
-	}, function(err) {
-		callback(false);
-	});
-}
-
-
 filesystem.isReadOnly = function(path) {
 	path = filesystem.sanitise(path).substring(1);
 	var parts = path.split("/");
@@ -172,215 +128,65 @@ filesystem.isReadOnly = function(path) {
 }
 
 
-filesystem.list = function(path, callback) {
+filesystem.getName = function(path) {
+	return path.substring(path.lastIndexOf("/") + 1);
+}
+
+
+filesystem.getContainingFolder = function(path) {
+	return path.substring(0, path.lastIndexOf("/"));
+}
+
+
+filesystem.makeDirRecursive = function(path, mode, position) {
 	path = filesystem.sanitise(path);
-	
-	filer.ls(path, function(items) {
-		var files = [];
-		for (var i in items) {
-			var item = items[i];
-			files.push(item.name);
-		}
+	mode = mode || 0777;
+	position = position || 0;
 
-		callback(files, null);
-	}, function(err) {
-		console.log(err);
-		if (err.code == err.NOT_FOUND_ERR) {
-			callback([], null);
-		} else {
-			callback(null, err);
-		}
-	});
-}
+	var parts = path.split("/");
 
-
-filesystem.move = function(from, to, callback) {
-	from = filesystem.sanitise(from);
-	to = filesystem.sanitise(to);
-	
-	filesystem.isDir(to, function(is) {
-		var toDir = to.substring(0, to.lastIndexOf("/"));
-		var toName = to.substring(to.lastIndexOf("/") + 1);
-		if (is) {
-			toDir = to;
-			toName = from.substring(from.lastIndexOf("/") + 1);
-		}
-
-		filer.mv(from, toDir, toName, function(file) {
-			callback(null);
-		}, function(err) {
-			if (err.code == err.NOT_FOUND_ERR) {
-				callback(null);
-			} else {
-				callback(err);
-			}
-		});
-	});
-}
-
-
-filesystem.copy = function(from, to, callback) {
-	from = filesystem.sanitise(from);
-	to = filesystem.sanitise(to);
-	
-	filesystem.isDir(to, function(is) {
-		var toDir = to.substring(0, to.lastIndexOf("/"));
-		var toName = to.substring(to.lastIndexOf("/") + 1);
-		if (is) {
-			toDir = to;
-			toName = from.substring(from.lastIndexOf("/") + 1);
-		}
-
-		filer.cp(from, toDir, toName, function(file) {
-			callback(null);
-		}, function(err) {
-			if (err.code == err.NOT_FOUND_ERR) {
-				callback(null);
-			} else {
-				callback(err);
-			}
-		});
-	});
-}
-
-
-filesystem.delete = function(path, callback) {
-	path = filesystem.sanitise(path);
-	
-	filer.rm(path, function() {
-		callback(null);
-	}, function(err) {
-		if (err.code == err.NOT_FOUND_ERR) {
-			callback(null);
-		} else {
-			callback(err);
-		}
-	});
-}
-
-
-filesystem.read = function(path, callback) {
-	path = filesystem.sanitise(path);
-	
-	filesystem.isDir(path, function(is) {
-		if (is) {
-			callback(null, "dir");
-			return;
-		}
-
-		filer.open(path, function(file) {
-			var reader = new FileReader();
-			reader.onloadend = function(e) {
-				callback(e.target.result, null);
-			}
-
-			reader.onerror = function(err) {
-				callback(null, err);
-			}
-
-			reader.onabort = function(err) {
-				callback(null, err);
-			}
-
-			reader.readAsText(file);
-		}, function(err) {
-			callback(null, err);
-		});
-	});
-}
-
-
-filesystem.write = function(path, contents, append, callback) {
-	path = filesystem.sanitise(path);
-	
-	filesystem.isDir(path, function(is) {
-		if (is) {
-			callback("dir");
-			return;
-		}
-
-		var complete = function() {
-			filer.write(path, {"data": contents, "append": append}, function(entry, writer) {
-				callback(null);
-			}, function(err) {
-				callback(err);
-			});
-		}
-
-		var dir = path.substring(0, path.lastIndexOf("/"));
-		if (dir.length > 0) {
-			filesystem.makeDir(dir, function(err) {
-				if (err) {
-					callback(err);
-				} else {
-					complete();
-				}
-			});
-		} else {
-			complete();
-		}
-	});
-}
-
-
-filesystem.makeDir = function(path, callback) {
-	path = filesystem.sanitise(path) + "/";
-	if (path == "/") {
-		callback(null);
-		return;
+	if (position >= parts.length) {
+		return true;
 	}
 
-	var dir = path.substring(1);
-	var currentDir = "/" + dir.substring(0, dir.indexOf("/"));
-	dir = dir.substring(dir.indexOf("/") + 1);
-
-	var make = function() {
-		var next = function() {
-			if (dir.indexOf("/") == -1) {
-				callback(null);
-			} else {
-				currentDir = currentDir + "/" + dir.substring(0, dir.indexOf("/"));
-				dir = dir.substring(dir.indexOf("/") + 1);
-				make();
+	var directory = parts.slice(0, position + 1).join("/") || "/";
+	try {
+		fs.statSync(directory);
+		filesystem.makeDirRecursive(path, mode, position + 1);
+	} catch (e) {
+		try {
+			fs.mkdirSync(directory, mode);
+			filesystem.makeDirRecursive(path, mode, position + 1);
+		} catch (e) {
+			if (e.code != "EEXIST") {
+				throw e;
 			}
+
+			filesystem.makeDirRecursive(path, mode, position + 1);
 		}
-
-		filer.mkdir(currentDir, true, next, function(err) {
-			if (err.code != err.INVALID_MODIFICATION_ERR) {
-				callback(err);
-			} else {
-				next();
-			}
-		});
 	}
-
-	make();
 }
 
 
 
-//  ----------------  Lua Wrappers  ----------------  //
+//  ----------------  Lua Functions  ----------------  //
 
 
 fsAPI.list = function(L) {
 	var path = filesystem.resolve(C.luaL_checkstring(L, 1));
-
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.list(path, function(files, err) {
-		if (err) {
-			console.log("fs_list error", err);
-			return;
+	var files = fs.readdirSync(path);
+	if (files) {
+		C.lua_newtable(L);
+		for (var i in files) {
+			C.lua_pushnumber(L, i + 1);
+			C.lua_pushstring(L, files[i]);
+			C.lua_rawset(L, -3);
 		}
-
-		console.log("list", files);
-		computer.eventStack.push(["fs_list", currentCallID, files]);
-		resumeThread();
-	});
-
-	return 1;
+		return 1;
+	} else {
+		console.log("fs.list error", files);
+		return 0;
+	}
 }
 
 
@@ -392,15 +198,8 @@ fsAPI.getSize = function(L) {
 
 fsAPI.exists = function(L) {
 	var path = filesystem.resolve(C.luaL_checkstring(L, 1));
-
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.exists(path, function(exists) {
-		computer.eventStack.push(["fs_exists", currentCallID, exists]);
-		resumeThread();
-	});
+	var exists = fs.existsSync(path);
+	C.lua_pushboolean(L, exists ? 1 : 0);
 
 	return 1;
 }
@@ -408,15 +207,12 @@ fsAPI.exists = function(L) {
 
 fsAPI.isDir = function(L) {
 	var path = filesystem.resolve(C.luaL_checkstring(L, 1));
-
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.isDir(path, function(is) {
-		computer.eventStack.push(["fs_isDir", currentCallID, is]);
-		resumeThread();
-	});
+	var stat = fs.statSync(path);
+	if (stat.isDirectory()) {
+		C.lua_pushboolean(L, 1);
+	} else {
+		C.lua_pushboolean(L, 0);
+	}
 
 	return 1;
 }
@@ -425,7 +221,7 @@ fsAPI.isDir = function(L) {
 fsAPI.isReadOnly = function(L) {
 	var path = filesystem.resolve(C.luaL_checkstring(L, 1));
 	var isReadOnly = filesystem.isReadOnly(path);
-	C.lua_pushnumber(L, isReadOnly ? 1 : 0);
+	C.lua_pushboolean(L, isReadOnly ? 1 : 0);
 
 	return 1;
 }
@@ -433,147 +229,85 @@ fsAPI.isReadOnly = function(L) {
 
 fsAPI.makeDir = function(L) {
 	var path = filesystem.resolve(C.luaL_checkstring(L, 1));
+	filesystem.makeDirRecursive(path);
 
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.makeDir(path, function(err) {
-		if (err) {
-			console.log("fs_makeDir error", err);
-		}
-
-		computer.eventStack.push(["fs_makeDir", currentCallID]);
-		resumeThread();
-	});
-
-	return 1;
+	return 0;
 }
 
 
 fsAPI.move = function(L) {
 	var from = filesystem.resolve(C.luaL_checkstring(L, 1));
 	var to = filesystem.resolve(C.luaL_checkstring(L, 2));
+	var toStat = fs.statSync(to);
+	if (toStat.isDirectory()) {
+		fs.renameSync(from, to + filesystem.getName(from));
+	} else if (!toStat.isFile()) {
+		fs.renameSync(from, to);
+	}
 
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.move(from, to, function(err) {
-		if (err) {
-			console.log("fs_move error", err);
-		}
-
-		computer.eventStack.push(["fs_move", currentCallID]);
-		resumeThread();
-	});
-	
-	return 1;
+	return 0;
 }
 
 
 fsAPI.copy = function(L) {
 	var from = filesystem.resolve(C.luaL_checkstring(L, 1));
 	var to = filesystem.resolve(C.luaL_checkstring(L, 2));
+	var toStat = fs.statSync(to);
+	if (toStat.isDirectory()) {
+		fs.createReadStream(from).pipe(fs.createWriteStream(to + filesystem.getName(from)));
+	} else if (!toStat.isFile()) {
+		fs.createReadStream(from).pipe(fs.createWriteStream(to));
+	}
 
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.copy(from, to, function(err) {
-		if (err) {
-			console.log("fs_copy error", err);
-		}
-
-		computer.eventStack.push(["fs_copy", currentCallID]);
-		resumeThread();
-	});
-	
-	return 1;
+	return 0;
 }
 
 
 fsAPI.delete = function(L) {
 	var path = filesystem.resolve(C.luaL_checkstring(L, 1));
+	if (path != "/" + computer.id) {
+		fs.unlinkSync(path);
+	}
 
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.delete(path, function(err) {
-		if (err) {
-			console.log("fs_delete error", err);
-		}
-
-		computer.eventStack.push(["fs_delete", currentCallID]);
-		resumeThread();
-	});
-
-	return 1;
+	return 0;
 }
 
 
 fsAPI.write = function(L) {
 	var path = filesystem.resolve(C.luaL_checkstring(L, 1));
 	var contents = C.luaL_checkstring(L, 2);
+	var stat = fs.statSync(path);
+	if (!stat.isDirectory()) {
+		fs.writeFileSync(path, contents);
+	}
 
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.write(path, contents, false, function(err) {
-		if (err) {
-			console.log("fs_write error", err);
-		}
-
-		computer.eventStack.push(["fs_write", currentCallID]);
-		resumeThread();
-	});
-
-	return 1;
+	return 0;
 }
 
 
 fsAPI.append = function(L) {
 	var path = filesystem.resolve(C.luaL_checkstring(L, 1));
 	var contents = C.luaL_checkstring(L, 2);
+	var stat = fs.statSync(path);
+	if (!stat.isDirectory()) {
+		fs.appendFileSync(path, contents);
+	}
 
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.write(path, contents, true, function(err) {
-		if (err) {
-			console.log("fs_write error", err);
-			return;
-		}
-
-		computer.eventStack.push(["fs_append", currentCallID]);
-		resumeThread();
-	});
-	
-	return 1;
+	return 0;
 }
 
 
 fsAPI.read = function(L) {
 	var path = filesystem.resolve(C.luaL_checkstring(L, 1));
-
-	var currentCallID = callID;
-	C.lua_pushnumber(L, currentCallID);
-	callID += 1;
-
-	filesystem.read(path, function(contents, err) {
-		if (err) {
-			console.log("fs_read error", err);
-			return;
-		}
-
-		computer.eventStack.push(["fs_read", currentCallID, contents]);
-		resumeThread();
-	});
-	
-	return 1;
+	var stat = fs.statSync(path);
+	if (stat.isFile()) {
+		var contents = fs.readFileSync(path);
+		C.lua_pushstring(L, contents.toString());
+		
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 

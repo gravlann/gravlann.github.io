@@ -1,6 +1,6 @@
 
 //  
-//  WebCC
+//  Mimic
 //  Made by 1lann and GravityScore
 //  
 
@@ -31,6 +31,8 @@ window.onkeydown = function(event) {
 	if (pushedSomething) {
 		resumeThread();
 	}
+
+	event.preventDefault();
 }
 
 

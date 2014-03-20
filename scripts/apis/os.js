@@ -1,6 +1,6 @@
 
 //  
-//  WebCC
+//  Mimic
 //  Made by 1lann and GravityScore
 //  
 
@@ -102,12 +102,14 @@ osAPI.queueEvent = function(L) {
 
 
 osAPI.shutdown = function(L) {
-
+	doShutdown = true;
+	return 0;
 }
 
 
 osAPI.reboot = function(L) {
-
+	doReboot = true;
+	return 0;
 }
 
 
