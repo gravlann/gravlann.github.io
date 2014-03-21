@@ -1,11 +1,36 @@
 
+--  Some functions are taken from the ComputerCraft bios.lua, 
+--  which was written by dan200
+
+--  I just cleaned up the code a bit
+
+
 xpcall = function(_fn, _fnErrorHandler)
 	assert(type(_fn) == "function", "bad argument #1 to xpcall (function expected, got " .. type(_fn) .. ")")
 
 	local co = coroutine.create(_fn)
+	local coroutineClock = os.clock()
+
+	debug.sethook(co, function()
+		if os.clock() >= coroutineClock + 2 then
+			print("Lua: Too long without yielding") error("Too long without yielding", 2)
+		end
+	end, "", 10000)
+
 	local results = {coroutine.resume(co)}
+
+	debug.sethook(co)
 	while coroutine.status(co) ~= "dead" do
+		coroutineClock = os.clock()
+		debug.sethook(co, function()
+			if os.clock() >= coroutineClock + 2 then
+				print("Lua: Too long without yielding")
+				error("Too long without yielding", 2)
+			end
+		end, "", 10000)
+
 		results = {coroutine.resume(co, coroutine.yield())}
+		debug.sethook(co)
 	end
 
 	if results[1] == true then
@@ -31,82 +56,40 @@ pcall = function(_fn, ...)
 end
 
 
-local protectedEvents = {
-	"fs_list",
-	"fs_exists",
-	"fs_isDir",
-	"fs_makeDir",
-	"fs_move",
-	"fs_copy",
-	"fs_read",
-	"fs_write",
-	"fs_append",
-	"fs_delete",
-}
+local fsWrite = fs.write
+fs.write = nil
 
-local isProtected = function(evt)
-	for k, v in pairs(protectedEvents) do
-		if v == evt then
-			return true
-		end
-	end
-	return false
-end
+local fsAppend = fs.append
+fs.append = nil
+
+local fsRead = fs.read
+fs.read = nil
 
 
-local queueEvents = function(evts)
-	for k, v in pairs(evts) do
-		os.queueEvent(unpack(v))
-	end
-end
+function fs.open(path, mode)
+	if mode == "w" then
+		local f = {
+			["_buffer"] = "",
+			["write"] = function(str)
+				f._buffer = f._buffer .. tostring(str)
+			end,
+			["close"] = function()
+				fsWrite(path, f._buffer)
+				f.write = nil
+			end,
+		}
 
+		return f
+	elseif mode == "r" then
+		local f = {
+			["readAll"] = function()
+				return fsRead(path)
+			end,
+			["close"] = function() end,
+		}
 
-local waitFor = function(evtName, evtID)
-	local events = {}
-	local timeout = os.startTimer(1)
-	while true do
-		local e = {coroutine.yield()}
-		if e[1] == evtName and e[2] == evtID then
-			queueEvents(events)
-			return e
-		elseif e[1] == "timer" and e[2] == timeout then
-			queueEvents(events)
-			return nil
-		elseif not isProtected(e[1]) then
-			table.insert(events, e)
-		end
-	end
-end
-
-
-local function unserializeTable(s)
-	local func, e = loadstring("return " .. s, "serialize")
-	if not func then
-		return s
+		return f
 	else
-		setfenv(func, {})
-		return func()
+		error("mode not supported")
 	end
-end
-
-
-local fs_list = fs.list
-fs.list = function(path)
-	local id = fs_list(path)
-	local e = waitFor("fs_list", id)
-	if e then
-		return unserializeTable(e[3])
-	end
-	return nil
-end
-
-
-local fs_exists = fs.exists
-fs.exists = function(path)
-	local id = fs_exists(path)
-	local e = waitFor("fs_exists", id)
-	if e then
-		return e[3]
-	end
-	return false
 end

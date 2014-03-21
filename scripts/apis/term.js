@@ -27,6 +27,7 @@ termAPI.write = function(L) {
 		str = "";
 	}
 
+	str.replace("\n", " ");
 	render.text(term.cursorX, term.cursorY, str, term.textColor, term.backgroundColor);
 	term.cursorX += str.length;
 	render.cursorBlink();
@@ -121,7 +122,7 @@ termAPI.scroll = function(L) {
 		canvas.height - config.borderHeight * 2);
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
-	context.putImageData(imageData, config.borderWidth, config.cellHeight * (amount - 1) * -1 + config.borderHeight);
+	context.putImageData(imageData, config.borderWidth, config.cellHeight * amount * -1 + config.borderHeight);
 
 	context.beginPath();
 	context.rect(0, 0, canvas.width, config.borderHeight);

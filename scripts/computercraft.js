@@ -11,10 +11,6 @@ String.prototype.repeat = function(num) {
 }
 
 
-// Version
-var version = "CraftOS 1.5 (Web Alpha)";
-
-
 // Lua State
 var C = Lua5_1.C;
 var L = C.lua_open();
@@ -27,29 +23,6 @@ var thread = {
 	"main": null,
 	"alive": false,
 };
-
-testAPI = {
-	"table": function(L){
-		var exampleTable = {
-			0: "hi",
-			1: "bye"
-		}
-		C.lua_newtable(L);
-		C.lua_pushnumber(L,1);
-		C.lua_pushstring(L,"this")
-		C.lua_rawset(L, -3);
-		C.lua_pushnumber(L,2);
-		C.lua_pushstring(L,"is")
-		C.lua_rawset(L, -3);
-		C.lua_pushnumber(L,3);
-		C.lua_pushstring(L,"a")
-		C.lua_rawset(L, -3);
-		C.lua_pushnumber(L,4);
-		C.lua_pushstring(L,"test")
-		C.lua_rawset(L, -3);
-		return 1;
-	}
-}
 
 
 // OS
@@ -90,7 +63,6 @@ var loadAPIs = function() {
 		"os": osAPI,
 		"peripheral": peripheralAPI,
 		"term": termAPI,
-		"mimic": testAPI,
 	};
 
 	Lua5_1.Runtime.functionPointers = [];
@@ -131,9 +103,9 @@ threadHang = function() {
 		render.text(1, i, " ".repeat(term.width), "0", "4");
 	}
 
-	var errorOne = "The Lua thread had hung, and has been";
-	var errorTwo = "been terminated. This is equivelant to";
-	var errorThree = "\"Too long without yielding.\"";
+	var errorOne = "The Lua thread had hung, for extensive";
+	var errorTwo = "periods of time, and has been terminated.";
+	var errorThree = "Experiencing this error is a rare case.";
 	var errorFour = "Please reboot the computer";
 	var startOne = Math.round((term.width / 2) - ((errorOne.length) / 2));
 	var startTwo = Math.round((term.width / 2) - ((errorTwo.length) / 2));
@@ -237,18 +209,6 @@ var initialization = function() {
 
 
 var setup = function(callback) {
-	// waitForWebfonts(["minecraftia"], function() {
-	// 	setTimeout(function() {
-	// 		filesystem.setup(function(err) {
-	// 			if (err) {
-	// 				return;
-	// 			}
-
-	// 			callback();
-	// 		});
-	// 	}, 500);
-	// });
-	
 	render.setup(function() {
 		filesystem.setup(function(err) {
 			if (err) {
