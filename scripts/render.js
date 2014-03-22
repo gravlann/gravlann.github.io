@@ -8,7 +8,6 @@
 
 var canvas = document.getElementById("canvas");
 var overlayCanvas = document.getElementById("overlay-canvas");
-context.imageSmoothingEnabled = false;
 
 var context = canvas.getContext("2d");
 var overlayContext = overlayCanvas.getContext("2d");
@@ -26,6 +25,7 @@ var lineYOffset = 2;
 
 
 render.setup = function(callback) {
+	context.imageSmoothingEnabled = false;
 	font = new Image();
 	font.src = "fonts/font.png";
 	font.onload = callback;
