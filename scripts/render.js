@@ -8,6 +8,7 @@
 
 var canvas = document.getElementById("canvas");
 var overlayCanvas = document.getElementById("overlay-canvas");
+context.imageSmoothingEnabled = false;
 
 var context = canvas.getContext("2d");
 var overlayContext = overlayCanvas.getContext("2d");
