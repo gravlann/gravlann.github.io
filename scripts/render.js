@@ -21,18 +21,24 @@ var lineYOffset = 2;
 
 
 
-//  ----------------  Loading  ----------------  //
+//  ------------------------
+//    Setup
+//  ------------------------
 
 
 render.setup = function(callback) {
 	font = new Image();
 	font.src = "fonts/font.png";
-	font.onload = callback;
+	font.onload = function() {
+		callback();
+	}
 }
 
 
 
-//  ----------------  Rendering  ----------------  //
+//  ------------------------
+//    Characters
+//  ------------------------
 
 
 render.characterBackground = function(x, y, color, ctx) {
@@ -40,7 +46,8 @@ render.characterBackground = function(x, y, color, ctx) {
 		ctx = context;
 	}
 
-	if (x >= 1 && y >= 1 && x <= term.width && y <= term.height) {
+	var computer = core.getActiveComputer();
+	if (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height) {
 		var cellX = ((x - 1) * config.cellWidth + config.borderWidth);
 		var cellY = ((y - 1) * config.cellHeight + config.borderHeight);
 
@@ -61,7 +68,8 @@ render.characterText = function(x, y, text, color, ctx) {
 		return;
 	}
 
-	if (x >= 1 && y >= 1 && x <= term.width && y <= term.height) {
+	var computer = core.getActiveComputer();
+	if (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height) {
 		var loc = characters.indexOf(text);
 		if (loc != -1) {
 			var imgW = font.width / 16;
@@ -90,7 +98,8 @@ render.character = function(x, y, text, foreground, background, ctx) {
 		ctx = context;
 	}
 
-	if (x >= 1 && y >= 1 && x <= term.width && y <= term.height) {
+	var computer = core.getActiveComputer();
+	if (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height) {
 		if (typeof(background) != "undefined") {
 			render.characterBackground(x, y, background, ctx);
 		}
@@ -102,20 +111,83 @@ render.character = function(x, y, text, foreground, background, ctx) {
 }
 
 
-render.text = function(x, y, text, foreground, background, ctx) {
-	if (x >= 1 && y >= 1 && x <= term.width && y <= term.height) {
-		for (var i = 0; i < text.length; i++) {
-			render.character(x + i, y, text.charAt(i), foreground, background, ctx);
-		}
+
+//  ------------------------
+//    Rendering
+//  ------------------------
+
+
+render.clearLine = function(y, foreground, background) {
+	background = background || "0";
+	foreground = foreground || "f";
+
+	var computer = core.getActiveComputer();
+	render.text(1, y, " ".repeat(computer.width), foreground, background);
+}
+
+
+render.clear = function(foreground, background) {
+	background = background || "0";
+	foreground = foreground || "f";
+
+	var computer = core.getActiveComputer();
+	for (var i = 1; i <= computer.height; i++) {
+		render.clearLine(i, foreground, background);
 	}
 }
 
 
+render.text = function(x, y, text, foreground, background, ctx) {
+	var computer = core.getActiveComputer();
+	for (var i = 0; i < text.length; i++) {
+		render.character(x + i, y, text.charAt(i), foreground, background, ctx);
+	}
+}
+
+
+render.textCentred = function(y, text, foreground, background, ctx) {
+	var computer = core.getActiveComputer();
+	var x = Math.floor(computer.width / 2 - text.length / 2);
+	render.text(x, y, text, foreground, background, ctx);
+}
+
+
+
+//  ------------------------
+//    Cursor
+//  ------------------------
+
+
 render.cursorBlink = function() {
-	if (term.cursorBlink && term.cursorFlash) {
+	var computer = core.getActiveComputer();
+
+	if (computer.cursor.blink && core.cursorFlash) {
 		overlayContext.clearRect(0, 0, canvas.width, canvas.height);
-		render.text(term.cursorX, term.cursorY, "_", term.textColor, undefined, overlayContext);
+		render.text(computer.cursor.x, computer.cursor.y, "_", computer.colors.foreground, undefined, overlayContext);
 	} else {
 		overlayContext.clearRect(0, 0, canvas.width, canvas.height);
+	}
+}
+
+
+
+//  ------------------------
+//    Displays
+//  ------------------------
+
+
+render.bsod = function(title, lines) {
+	render.clear("f", "4");
+
+	var computer = core.getActiveComputer();
+	computer.cursor.blink = false;
+	render.cursorBlink();
+
+	render.clearLine(5, "f", "f");
+	render.textCentred(5, title, "4", "f");
+
+	for (var i in lines) {
+		var line = lines[i];
+		render.textCentred(9 + parseInt(i), line, "f", "4");
 	}
 }

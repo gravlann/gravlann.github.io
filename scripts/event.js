@@ -5,11 +5,27 @@
 //  
 
 
+
 var mouseDown = false;
-var previousMouseLocation = [-1, -1, -1];
+var prevMouseState = {
+	"x": -1,
+	"y": -1,
+	"button": -1,
+};
+
+
+
+//  ------------------------
+//    Key Events
+//  ------------------------
 
 
 window.onkeydown = function(event) {
+	if (gui.selected != -1 || gui.popupOpen) {
+		return;
+	}
+
+	var computer = core.getActiveComputer();
 	var code = globals.keyCodes[event.keyCode];
 	var character = globals.characters.noshift[event.keyCode];
 	if (event.shiftKey) {
@@ -29,10 +45,12 @@ window.onkeydown = function(event) {
 	}
 
 	if (pushedSomething) {
-		resumeThread();
+		computer.resume();
 	}
 
-	event.preventDefault();
+	if (event.keyCode == 8) {
+		event.preventDefault();
+	}
 }
 
 
@@ -42,16 +60,27 @@ window.onkeyup = function(event) {
 
 
 
+//  ------------------------
+//    Mouse Events
+//  ------------------------
+
+
 window.onmousedown = function(event) {
+	if (gui.selected != -1 || gui.popupOpen) {
+		return;
+	}
+
 	mouseDown = true;
+
+	var computer = core.getActiveComputer();
 
 	var loc = getCanvasLocation();
 	var button = globals.buttons["click " + event.button] + 1;
 	var x = Math.floor((event.pageX - config.borderWidth - loc.x) / config.cellWidth) + 1;
 	var y = Math.floor((event.pageY - config.borderHeight - loc.y) / config.cellHeight) + 1;
-	if (x >= 1 && y >= 1 && x <= config.width && y <= config.height) {
+	if (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height) {
 		computer.eventStack.push(["mouse_click", button, x, y]);
-		resumeThread();
+		computer.resume();
 	}
 }
 
@@ -62,19 +91,25 @@ window.onmouseup = function(event) {
 
 
 window.onmousemove = function(event) {
+	if (gui.selected != -1 || gui.popupOpen) {
+		return;
+	}
+
+	var computer = core.getActiveComputer();
+
 	var loc = getCanvasLocation();
 	var x = Math.floor((event.pageX - config.borderWidth - loc.x) / config.cellWidth) + 1;
 	var y = Math.floor((event.pageY - config.borderHeight - loc.y) / config.cellHeight) + 1;
 	var button = globals.buttons["click " + event.button];
 
-	if (mouseDown && (previousMouseLocation[0] != button || previousMouseLocation[1] != x || previousMouseLocation[2] != y)) {
-		if (x >= 1 && y >= 1 && x <= config.width && y <= config.height) {
+	if (mouseDown && (prevMouseState.button != button || prevMouseState.x != x || prevMouseState.y != y)) {
+		if (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height) {
 			computer.eventStack.push(["mouse_drag", button, x, y]);
-			resumeThread();
+			computer.resume();
 
-			previousMouseLocation[0] = button;
-			previousMouseLocation[1] = x;
-			previousMouseLocation[2] = y;
+			prevMouseState.button = button;
+			prevMouseState.y = x;
+			prevMouseState.x = y;
 		}
 	}
 }

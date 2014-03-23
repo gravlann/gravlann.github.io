@@ -10,37 +10,46 @@ var httpAPI = {};
 
 
 httpAPI.request = function(L) {
+	var computer = core.getActiveComputer();
 	var url = C.luaL_checkstring(L, 1);
+
+	if (!navigator.onLine) {
+		setTimeout(function() {
+			console.log("Not online!")
+			computer.eventStack.push(["http_failure", url]);
+			computer.resume();
+		}, 10);
+
+		return 0;
+	}
+
 	var postData;
 
-	// var shouldUsePost = false;
-	// if (C.lua_type(L, 2) != -1 || C.lua_type(L, 2) != C.LUA_TNIL) {
-	// 	postData = C.luaL_checkstring(L, 2);
-	// 	shouldUsePost = true;
-	// }
+	var shouldUsePost = false;
+	if (C.lua_type(L, 2) != -1 && C.lua_type(L, 2) != C.LUA_TNIL) {
+		postData = C.luaL_checkstring(L, 2);
+		shouldUsePost = true;
+	}
 
-	// var request = new XMLHttpRequest();
-	// if (shouldUsePost) {
-	// 	request.open("POST", url, true);
-	// } else {
-	// 	request.open("GET", url, true);
-	// }
+	onHttpCompletion = function(response) {
+		if (response.status == "200") {
+			computer.eventStack.push(["http_bios_wrapper_success", url, response.html]);
+			computer.resume();
+		} else {
+			console.log("HTTP Failure: ",response)
+			computer.eventStack.push(["http_failure", url]);
+			computer.resume();
+		}
+	}
 
-	// request.onload = function(evt) {
-	// 	computer.eventStack.push(["http_success", url, request.responseText]);
-	// 	resumeThread();
-	// }
-
-	// request.onerror = function(err) {
-	// 	computer.eventStack.push(["http_failure", url]);
-	// 	resumeThread();
-	// }
-
-	// if (shouldUsePost) {
-	// 	request.send(postData);
-	// } else {
-	// 	request.send(null);
-	// }
+	var request = new xdRequest;
+	if (shouldUsePost) {
+		console.log(postData)
+		request.post_body = postData;
+		request.setURL(url).post(onHttpCompletion);
+	 } else {
+		request.setURL(url).get(onHttpCompletion);
+	}
 
 	return 0;
 }

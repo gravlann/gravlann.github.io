@@ -6,7 +6,15 @@
 
 
 
-var prebios = '\n\
+var code = {};
+
+
+code.getAll = function() {
+	return code.prebios + "\n" + code.bios;
+}
+
+
+code.prebios = '\n\
 --bios file--\n\
 \n\
 --  Some functions are taken from the ComputerCraft bios.lua, \n\
@@ -15,31 +23,46 @@ var prebios = '\n\
 --  I just cleaned up the code a bit\n\
 \n\
 \n\
+console = {}\n\
+console.log = print\n\
+\n\
+\n\
+local debugLib = debug\n\
+collectgarbage = nil\n\
+require = nil\n\
+module = nil\n\
+package = nil\n\
+newproxy = nil\n\
+load = nil\n\
+\n\
+\n\
 xpcall = function(_fn, _fnErrorHandler)\n\
 	assert(type(_fn) == "function", "bad argument #1 to xpcall (function expected, got " .. type(_fn) .. ")")\n\
 \n\
 	local co = coroutine.create(_fn)\n\
 	local coroutineClock = os.clock()\n\
 \n\
-	debug.sethook(co, function()\n\
+	debugLib.sethook(co, function()\n\
 		if os.clock() >= coroutineClock + 2 then\n\
+			console.log("Lua: Too long without yielding")\n\
 			error("Too long without yielding", 2)\n\
 		end\n\
 	end, "", 10000)\n\
 \n\
 	local results = {coroutine.resume(co)}\n\
 \n\
-	debug.sethook(co)\n\
+	debugLib.sethook(co)\n\
 	while coroutine.status(co) ~= "dead" do\n\
 		coroutineClock = os.clock()\n\
-		debug.sethook(co, function()\n\
+		debugLib.sethook(co, function()\n\
 			if os.clock() >= coroutineClock + 2 then\n\
+				console.log("Lua: Too long without yielding")\n\
 				error("Too long without yielding", 2)\n\
 			end\n\
 		end, "", 10000)\n\
 \n\
 		results = {coroutine.resume(co, coroutine.yield())}\n\
-		debug.sethook(co)\n\
+		debugLib.sethook(co)\n\
 	end\n\
 \n\
 	if results[1] == true then\n\
@@ -76,7 +99,16 @@ fs.read = nil\n\
 \n\
 \n\
 function fs.open(path, mode)\n\
+	local containingFolder = path:sub(1, path:len() - fs.getName(path):len())\n\
+	if fs.isDir(path) or not fs.isDir(containingFolder) then\n\
+		return nil\n\
+	end\n\
+\n\
 	if mode == "w" then\n\
+		if fs.isReadOnly(path) then\n\
+			return nil\n\
+		end\n\
+\n\
 		local f = {}\n\
 		f = {\n\
 			["_buffer"] = "",\n\
@@ -98,6 +130,10 @@ function fs.open(path, mode)\n\
 \n\
 		return f\n\
 	elseif mode == "r" then\n\
+		if not fs.exists(path) or fs.isDir(path) then\n\
+			return nil\n\
+		end\n\
+\n\
 		local contents = fsRead(path)\n\
 		if not contents then\n\
 			return\n\
@@ -113,9 +149,13 @@ function fs.open(path, mode)\n\
 				return contents\n\
 			end,\n\
 			["readLine"] = function()\n\
+				if f._cursor == f._contents:len() + 1 then\n\
+					return nil\n\
+				end\n\
+\n\
 				local nextLine = f._contents:find("\\n", f._cursor, true)\n\
 				if not nextLine then\n\
-					return nil\n\
+					nextLine = f._contents:len()\n\
 				end\n\
 				local line = f._contents:sub(f._cursor, nextLine - 1)\n\
 				f._cursor = nextLine + 1\n\
@@ -126,6 +166,10 @@ function fs.open(path, mode)\n\
 \n\
 		return f\n\
 	elseif mode == "a" then\n\
+		if fs.isReadOnly(path) then\n\
+			return nil\n\
+		end\n\
+\n\
 		local f = {}\n\
 		f = {\n\
 			["_buffer"] = "",\n\
@@ -150,18 +194,39 @@ function fs.open(path, mode)\n\
 		error("mode not supported")\n\
 	end\n\
 end\n\
+\n\
+\n\
+local nativeYield = coroutine.yield\n\
+function coroutine.yield(filter)\n\
+	local response = {nativeYield(filter)}\n\
+	if response[1] == "http_bios_wrapper_success" then\n\
+		local responseText = response[3]\n\
+		local responseData = {\n\
+			["readAll"] = function()\n\
+				return responseText\n\
+			end,\n\
+			["close"] = function()\n\
+			end,\n\
+			["getResponseCode"] = function()\n\
+				return "200"\n\
+			end\n\
+		}\n\
+		return "http_success",response[2],responseData\n\
+	else\n\
+		return unpack(response)\n\
+	end\n\
+end\n\
+\n\
+\n\
 ';
 
 
-var bios = '\n\
+code.bios = '\n\
 \n\
 --  Almost all functions are taken from the ComputerCraft bios.lua, \n\
 --  which was written by dan200\n\
 \n\
 --  I just cleaned up the code a bit\n\
-\n\
-\n\
-local jsConsolePrint = print\n\
 \n\
 \n\
 function os.version()\n\
@@ -301,7 +366,7 @@ function read(replaceCharacter, history)\n\
 	end\n\
 	\n\
 	while true do\n\
-		local sEvent, param = coroutine.yield()\n\
+		local sEvent, param = os.pullEvent()\n\
 		if sEvent == "char" then\n\
 			line = string.sub(line, 1, pos) .. param .. string.sub(line, pos + 1)\n\
 			pos = pos + 1\n\
@@ -579,7 +644,3 @@ end)\n\
 \n\
 os.shutdown()\n\
 ';
-
-getCode = function() {
-	return prebios + "\n" + bios;
-}
