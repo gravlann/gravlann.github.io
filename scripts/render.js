@@ -83,6 +83,9 @@ render.characterText = function(x, y, text, color, ctx) {
 			imgY += startY;
 
 			var offset = imgW / 2 - globals.characterWidths[loc] / 2 - 1;
+			if (text == "@" || text == "~") {
+				offset -= 1;
+			}
 
 			var textX = (x - 1) * config.cellWidth + config.borderWidth + offset;
 			var textY = (y - 1) * config.cellHeight + config.borderHeight + 1;
@@ -190,4 +193,5 @@ render.bsod = function(title, lines) {
 		var line = lines[i];
 		render.textCentred(9 + parseInt(i), line, "f", "4");
 	}
+	render.textCentred(9 + lines.length+1, "Press enter to reboot the computer...", "f", "4");
 }
