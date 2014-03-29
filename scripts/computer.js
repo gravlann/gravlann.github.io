@@ -17,6 +17,7 @@ var Computer = function(id, advanced) {
 
 	this.id = id;
 	this.advanced = advanced;
+	this.label = null;
 
 	this.L = C.lua_open();
 
@@ -264,4 +265,37 @@ Computer.prototype.terminate = function() {
 		this.eventStack.unshift(["terminate"]);
 		this.resume();
 	}
+}
+
+
+
+//  ------------------------
+//    GUI
+//  ------------------------
+
+
+Computer.prototype.getActualSize = function() {
+	var width = this.width * config.cellWidth + 2 * config.borderWidth;
+	var height = this.height * config.cellHeight + 2 * config.borderHeight;
+
+	return {"width": width, "height": height};
+}
+
+
+Computer.prototype.getLocation = function() {
+	var minX = 275;
+	var minY = 0;
+
+	if (gui.isFullscreen) {
+		minX = 0;
+	}
+
+	var size = this.getActualSize();
+	var x = (window.innerWidth - minX) / 2 - size.width / 2 + minX;
+	var y = (window.innerHeight - minY) / 2 - size.height / 2 + minY;
+
+	x = Math.max(x, minX);
+	y = Math.max(y, minY);
+
+	return {"x": x, "y": y};
 }
