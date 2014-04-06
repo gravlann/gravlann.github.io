@@ -48,46 +48,6 @@ filesystem.setup = function(callback) {
 
 
 //  ------------------------
-//    GUI Interface
-//  ------------------------
-
-
-filesystem.triggerGUIUpdate = function() {
-	var computer = core.getActiveComputer();
-	var computerPath = computerFilesystem.resolve("/");
-	var list = filesystem.listRecursively(computerPath);
-	var base = "/computers/" + computer.id.toString();
-
-	var files = [];
-	for (var i in list) {
-		var path = list[i];
-		files.push({
-			"path": path.substring(base.length),
-			"contents": filesystem.read(list[i]),
-		});
-	}
-
-	gui.onFilesystemChange(files);
-}
-
-
-filesystem.saveFiles = function(files) {
-	var computer = core.getActiveComputer();
-	if (typeof(computer) == "undefined") {
-		return;
-	}
-
-	var base = "/computers/" + computer.id.toString();
-	for (var i in files) {
-		var file = files[i];
-		var actualPath = filesystem.sanitise(base + "/" + file.path);
-		filesystem.write(actualPath, file.contents);
-	}
-}
-
-
-
-//  ------------------------
 //    Basic Utilities
 //  ------------------------
 
@@ -195,17 +155,18 @@ filesystem.listRecursively = function(path, includeDirectories) {
 	path = filesystem.sanitise(path);
 
 	var files = [];
-	var inDir = filesystem.list(path);
-	for (var i in inDir) {
-		var filePath = path + "/" + inDir[i];
+	var contents = filesystem.list(path);
+	for (var i in contents) {
+		var filePath = path + "/" + contents[i];
+
 		if (filesystem.isDir(filePath)) {
 			if (includeDirectories) {
-				files.push(filePath);
+				files.push(filePath + "/");
 			}
 
-			var dirFiles = filesystem.listRecursively(filePath, includeDirectories);
-			for (var i in dirFiles) {
-				files.push(dirFiles[i]);
+			var children = filesystem.listRecursively(filePath, includeDirectories);
+			for (var i in children) {
+				files.push(children[i]);
 			}
 		} else {
 			files.push(filePath);
@@ -213,6 +174,44 @@ filesystem.listRecursively = function(path, includeDirectories) {
 	}
 
 	return files;
+}
+
+
+filesystem.listHierarchically = function(path, id) {
+	id = typeof(id) == "undefined" ? 0 : id;
+	path = filesystem.sanitise(path);
+
+	var files = [];
+	var contents = filesystem.list(path);
+	for (var i in contents) {
+		var filePath = path + "/" + contents[i];
+		if (filePath.substring(0, 2) == "//") {
+			filePath = filePath.substring(1);
+		}
+
+		if (filesystem.isDir(filePath)) {
+			var children = filesystem.listHierarchically(filePath, id);
+			id = children.id;
+			files.push({
+				"id": id,
+				"name": contents[i],
+				"path": filePath,
+				"type": "folder",
+				"children": children.files,
+			});
+		} else {
+			files.push({
+				"id": id,
+				"name": contents[i],
+				"path": filePath,
+				"type": "file",
+			});
+		}
+
+		id += 1;
+	}
+
+	return {"files": files, "id": id};
 }
 
 
@@ -273,7 +272,7 @@ filesystem.write = function(path, contents) {
 			filesystem.makeDir(folder);
 		}
 
-		fs.writeFileSync(path, contents+"\n");
+		fs.writeFileSync(path, contents);
 	}
 }
 
@@ -325,11 +324,11 @@ filesystem.makeDir = function(path, mode, position) {
 filesystem.delete = function(path) {
 	path = filesystem.sanitise(path);
 
-
 	if (path != "/") {
 		if (filesystem.isDir(path)) {
 			var fileList = filesystem.listRecursively(path, true);
 			var directoryList = [];
+
 			for (var i in fileList) {
 				if (filesystem.isDir(fileList[i])) {
 					directoryList.push(fileList[i]);
@@ -337,18 +336,19 @@ filesystem.delete = function(path) {
 					fs.unlinkSync(fileList[i]);
 				}
 			}
+
 			for (var i in directoryList) {
 				if (filesystem.exists(directoryList[i])) {
 					fs.rmdirSync(directoryList[i]);
 				}
 			}
+
 			fs.rmdirSync(path);
 			return true;
 		} else if (filesystem.exists(path)) {
 			fs.unlinkSync(path);
 			return true;
 		} else {
-			console.log("File does not exist, ignoring deletion")
 			return true;
 		}
 	} else {
@@ -360,6 +360,7 @@ filesystem.delete = function(path) {
 
 //  -------  File Manipulation
 
+
 filesystem.copy = function(from, to) {
 	from = filesystem.sanitise(from);
 	to = filesystem.sanitise(to);
@@ -368,78 +369,63 @@ filesystem.copy = function(from, to) {
 		return false;
 	}
 
+	var success = false;
+	
 	if (filesystem.isDir(to)) {
-		// Place it inside
-		if ((to == from) && filesystem.exists(computerFilesystem.resolve("/"+filesystem.getName(from)))) {
-			console.log("File/folder exists in current directory!")
-			return false;
+		if (to == from && filesystem.exists(computerFilesystem.resolve("/" + filesystem.getName(from)))) {
+			
 		} else if (filesystem.isDir(from)) {
-			if (filesystem.exists(to+"/"+filesystem.getName(from))) {
-				console.log("Folder exists")
-				return false;
-			} else if ((to == "/") && filesystem.exists("/"+filesystem.getName(from))) {
-				console.log("Exists in root")
-				return false;
-			}
-			console.log("Placing folder in folder")
-			var fileList = filesystem.listRecursively(from, true);
-			for (var i in fileList) {
-				if (!filesystem.isDir(fileList[i])) {
-					var fileName = filesystem.getName(from)+"/"+fileList[i].substring(from.length);
-					console.log(fileName);
-					filesystem.write(to+"/"+fileName,filesystem.read(fileList[i]));
-				}
-			}
-			return true;
-		} else {
-			console.log("Place file inside directory")
-			if (filesystem.exists(to+"/"+filesystem.getName(from))) {
-				console.log("File already eixsts!")
-				return false;
+			if (filesystem.exists(to + "/" + filesystem.getName(from))) {
+				
+			} else if (to == "/" && filesystem.exists("/" + filesystem.getName(from))) {
+				
 			} else {
-				console.log("File placed")
-				filesystem.write(to+"/"+filesystem.getName(from), filesystem.read(from));
-				return true;
+				var fileList = filesystem.listRecursively(from, true);
+				for (var i in fileList) {
+					if (!filesystem.isDir(fileList[i])) {
+						var fileName = filesystem.getName(from) + "/" + fileList[i].substring(from.length);
+						filesystem.write(to+"/"+fileName, filesystem.read(fileList[i]));
+					}
+				}
+
+				success = true;
 			}
+		} else if (!filesystem.exists(to + "/" + filesystem.getName(from))) {
+			filesystem.write(to + "/" + filesystem.getName(from), filesystem.read(from));
+			success = true;
 		}
-	} else if (filesystem.exists(to)) {
-		// A file already exists here
-		console.log("File exists")
-		return false;
-	} else {
-		// Doesn't exist, create it
+	} else if (!filesystem.exists(to)) {
 		if (filesystem.isDir(from)) {
 			var fileList = filesystem.listRecursively(from, true);
-			console.log("Creating folder")
+
 			for (var i in fileList) {
 				if (!filesystem.isDir(fileList[i])) {
 					var fileName = fileList[i].substring(from.length);
-					console.log(fileName);
-					filesystem.write(to+"/"+fileName,filesystem.read(fileList[i]));
+					filesystem.write(to + "/" + fileName, filesystem.read(fileList[i]));
 				}
 			}
-			return true;
 		} else {
-			console.log("File doesn't exist, pasting")
 			filesystem.write(to, filesystem.read(from));
-			return true;
 		}
+
+		success = true;
 	}
-	console.log("Derp")
+
+	return success;
 }
 
 filesystem.move = function(from, to) {
+	var success = false;
 	if (filesystem.copy(from, to)) {
-		if(filesystem.delete(from)) {
-			filesystem.triggerGUIUpdate();
-			return true;
+		if (filesystem.delete(from)) {
+			success = true;
 		} else {
 			filesystem.delete(to);
-			return false;
 		}
-	} else {
-		return false;
 	}
+	
+	sidebar.update();
+	return success;
 }
 
 
@@ -458,13 +444,14 @@ filesystem.move = function(from, to) {
 //  -------  Utilities
 
 
-computerFilesystem.resolve = function(path) {
+computerFilesystem.resolve = function(path, computerID) {
+	var computer = core.getActiveComputer();
+	computerID = computerID || computer.id;
 	if (path != "/") {
 		computerFilesystem.createRoot();
 	}
 
-	var computer = core.getActiveComputer();
-	var base = "/computers/" + computer.id.toString();
+	var base = "/computers/" + computerID.toString();
 	var path = filesystem.format(base + filesystem.sanitise(path));
 
 	if (path.indexOf(base + "/rom") == 0) {
@@ -544,7 +531,7 @@ computerFilesystem.write = function(path, contents) {
 		success = false;
 	}
 
-	filesystem.triggerGUIUpdate();
+	sidebar.update();
 	return success;
 }
 
@@ -559,6 +546,7 @@ computerFilesystem.append = function(path, contents) {
 		success = false;
 	}
 
+	sidebar.update();
 	return success;
 }
 
@@ -573,7 +561,7 @@ computerFilesystem.makeDir = function(path) {
 		success = false;
 	}
 
-	filesystem.triggerGUIUpdate();
+	sidebar.update();
 	return success;
 }
 
@@ -588,7 +576,7 @@ computerFilesystem.delete = function(path) {
 		success = false;
 	}
 
-	filesystem.triggerGUIUpdate();
+	sidebar.update();
 	return success;
 }
 
@@ -609,10 +597,8 @@ computerFilesystem.copy = function(from, to) {
 	from = computerFilesystem.resolve(from);
 	to = computerFilesystem.resolve(to);
 
-	if (filesystem.copy(from, to)) {
-		filesystem.triggerGUIUpdate();
-		return true;
-	} else {
-		return false;
-	}
+	var success = filesystem.copy(from, to);
+
+	sidebar.update();
+	return success;
 }
