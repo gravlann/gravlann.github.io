@@ -428,6 +428,20 @@ filesystem.copy = function(from, to) {
 	console.log("Derp")
 }
 
+filesystem.move = function(from, to) {
+	if (filesystem.copy(from, to)) {
+		if(filesystem.delete(from)) {
+			filesystem.triggerGUIUpdate();
+			return true;
+		} else {
+			filesystem.delete(to);
+			return false;
+		}
+	} else {
+		return false;
+	}
+}
+
 
 
 
@@ -587,17 +601,7 @@ computerFilesystem.move = function(from, to) {
 	from = computerFilesystem.resolve(from);
 	to = computerFilesystem.resolve(to);
 
-	if (filesystem.copy(from, to)) {
-		if(filesystem.delete(from)) {
-			filesystem.triggerGUIUpdate();
-			return true;
-		} else {
-			filesystem.delete(to);
-			return false;
-		}
-	} else {
-		return false;
-	}
+	return filesystem.move(from, to)
 }
 
 
