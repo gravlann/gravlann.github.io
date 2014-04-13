@@ -415,19 +415,18 @@ filesystem.copy = function(from, to) {
 }
 
 filesystem.move = function(from, to) {
-	var success = false;
 	if (filesystem.copy(from, to)) {
 		if (filesystem.delete(from)) {
-			success = true;
+			sidebar.update();
+			return true
 		} else {
 			filesystem.delete(to);
+			return false;
 		}
+	} else {
+		return false;
 	}
-	
-	sidebar.update();
-	return success;
 }
-
 
 
 

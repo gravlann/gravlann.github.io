@@ -1,8 +1,8 @@
 
-//  
+//
 //  Mimic
 //  Made by 1lann and GravityScore
-//  
+//
 
 
 
@@ -54,12 +54,13 @@ window.onkeydown = function(event) {
 	if ((event.ctrlKey || event.metaKey) && character && character.toLowerCase() == "v") {
 		events.pasting = true;
 
-		var captureField = $("#paste-capture");
+		var captureField = $("#mobile-input");
+		captureField.val("");
 		captureField.focus();
 
 		setTimeout(function() {
 			var pasted = captureField.val();
-			captureField.val("");
+			captureField.val(">");
 
 			for (var i = 0; i < pasted.length; i++) {
 				var letter = pasted[i];
@@ -82,7 +83,7 @@ window.onkeydown = function(event) {
 			}
 
 			events.pasting = false;
-		}, 10);
+		}, 20);
 	} else if (event.ctrlKey && character && character == "r" && !events.triggerKeyTimerID) {
 		events.triggerKeyTimerID = setTimeout(function() {
 			computer.reboot();
@@ -201,8 +202,8 @@ window.onmousemove = function(event) {
 			computer.resume();
 
 			events.prevMouseState.button = button;
-			events.prevMouseState.y = x;
-			events.prevMouseState.x = y;
+			events.prevMouseState.x = x;
+			events.prevMouseState.y = y;
 		}
 	}
 }
@@ -224,45 +225,41 @@ isTouchDevice = function() {
 
 
 $("#mobile-input").bind("input", function() {
+	var mobileInput = $(this);
+
 	if (!isTouchDevice()) {
+		mobileInput.val(">");
 		return;
 	}
 
 	var computer = core.getActiveComputer();
-	var mobileInput = $(this);
 
 	if (mobileInput.val().length < 1) {
     	mobileInput.val(">");
-		mobileInput.caret(0);
+		mobileInput.caret(-1);
 
-		setTimeout(function() {
-			mobileInput.caret(-1);
-    		computer.eventStack.push(["key", 14]);
-    		computer.resume();
-		}, 5);
+		computer.eventStack.push(["key", 14]);
+		computer.resume();
 	} else if ($(this).val() != ">") {
 		var textInput = mobileInput.val().substring(1);
 		mobileInput.val(">");
-		mobileInput.caret(0);
+		mobileInput.caret(-1);
 
-		setTimeout(function() {
-			mobileInput.caret(-1);
-			for (var i = 0; i < textInput.length; i++) {
-				var letter = textInput[i];
-				var keyCode = parseInt(globals.charCodes[letter]);
-				var code = globals.keyCodes[keyCode];
+		for (var i = 0; i < textInput.length; i++) {
+			var letter = textInput[i];
+			var keyCode = parseInt(globals.charCodes[letter]);
+			var code = globals.keyCodes[keyCode];
 
-				if (typeof(code) != "undefined") {
-					computer.eventStack.push(["key", code]);
-				}
-
-				if (typeof(letter) != "undefined") {
-					computer.eventStack.push(["char", letter]);
-				}
+			if (typeof(code) != "undefined") {
+				computer.eventStack.push(["key", code]);
 			}
 
-			computer.resume();
-		}, 5);
+			if (typeof(letter) != "undefined") {
+				computer.eventStack.push(["char", letter]);
+			}
+		}
+
+		computer.resume();
 	}
 });
 
@@ -280,4 +277,60 @@ $("#mobile-form").submit(function(event) {
 	mobileInput.caret(-1);
 
 	computer.eventStack.push(["key", 28]);
+	computer.resume();
 });
+
+
+// ------------------------
+//   Scrolling
+// ------------------------
+
+var compoundScroll = 0
+
+onmousewheel = function(e) {
+	var e = window.event || e; // old IE support
+	var delta = e.wheelDelta || -e.detail*10
+
+	if (!delta) return true;
+
+	var computer = core.getActiveComputer();
+
+	if (computer) {
+		var loc = computer.getLocation();
+		var x = Math.floor((e.pageX - config.borderWidth - loc.x) / config.cellWidth) + 1;
+		var y = Math.floor((e.pageY - config.borderHeight - loc.y) / config.cellHeight) + 1;
+
+		if (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height) {
+			compoundScroll += delta;
+
+			if (Math.abs(Math.round(compoundScroll/100)) != 0) {
+				if (Math.ceil(compoundScroll/100) < 0) {
+					for (var i = 0; i <= Math.abs(Math.round(compoundScroll/100)); i++) {
+						computer.eventStack.push(["mouse_scroll", 1, x, y]);
+					}
+				} else {
+					for (var i = 0; i <= Math.round(compoundScroll/100); i++) {
+						computer.eventStack.push(["mouse_scroll", -1, x, y]);
+					}
+				}
+			}
+
+			compoundScroll = compoundScroll%100;
+
+			computer.resume();
+			e.preventDefault();
+		}
+	}
+}
+
+
+if (window.addEventListener) {
+	// IE9, Chrome, Safari, Opera
+	window.addEventListener("mousewheel", onmousewheel, false);
+	// Firefox
+	window.addEventListener("DOMMouseScroll", onmousewheel, false);
+}
+// IE 6/7/8
+else window.attachEvent("onmousewheel", onmousewheel);
+
+
