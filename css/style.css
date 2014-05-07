@@ -414,10 +414,6 @@ body {
 	opacity: 0.5;
 	color: white;
 
-	-moz-user-select: none;
-	
-	-ms-user-select: none;
-	user-select: none;
 }
 
 @media (max-width: 768px) {
