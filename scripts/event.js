@@ -228,10 +228,10 @@ $("#mobile-input").bind("input", function() {
 	var mobileInput = $(this);
 
 	if (!isTouchDevice()) {
-alert("not mobile")
+alert("not mobile");
 		return;
 	}
-alert("mobile")
+alert("mobile");
 	var computer = core.getActiveComputer();
 
 	if (mobileInput.val().length < 1) {
