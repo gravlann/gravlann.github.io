@@ -411,7 +411,7 @@ body {
 	left: 400px;
 	top: 150px;
 
-	opacity: 0;
+	opacity: 0.5;
 	color: white;
 
 	-moz-user-select: none;
