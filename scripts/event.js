@@ -261,7 +261,17 @@ $("#mobile-input").bind("input", function() {
 		computer.resume();
 	}
 });
+var previousTop = 0
+$("mobile-input").focus(function(event) {
+previousTop = $("mobile-input").css("top")
+$("mobile-input").css({
+"top": "-500"
+});
+});
 
+$("mobile-input").blur(function(event) {
+$("mobile-input").css("top", previousTop)
+});
 
 $("#mobile-form").submit(function(event) {
 	event.preventDefault();
@@ -331,5 +341,4 @@ if (window.addEventListener) {
 }
 // IE 6/7/8
 else window.attachEvent("onmousewheel", onmousewheel);
-
 
