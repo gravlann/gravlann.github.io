@@ -262,15 +262,15 @@ $("#mobile-input").bind("input", function() {
 	}
 });
 var previousTop = 0
-$("mobile-input").focus(function(event) {
-previousTop = $("mobile-input").css("top")
-$("mobile-input").css({
+$("#mobile-input").focus(function(event) {
+previousTop = $("#mobile-input").css("top")
+$("#mobile-input").css({
 "top": "-500"
 });
 });
 
-$("mobile-input").blur(function(event) {
-$("mobile-input").css("top", previousTop)
+$("#mobile-input").blur(function(event) {
+$("#mobile-input").css("top", previousTop)
 });
 
 $("#mobile-form").submit(function(event) {
