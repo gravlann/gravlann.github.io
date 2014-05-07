@@ -411,8 +411,8 @@ body {
 	left: 400px;
 	top: 150px;
 
-	opacity: 0.5;
-	color: white;
+	opacity: 0;
+	color: transparent;
 
 }
 
