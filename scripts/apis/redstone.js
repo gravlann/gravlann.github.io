@@ -1,28 +1,19 @@
 
-//  
-//  Mimic
-//  Made by 1lann and GravityScore
-//  
+//
+//  redstone.js
+//  GravityScore and 1lann
+//
 
 
 
 var redstoneAPI = {};
 
-var sides = [
-	"top",
-	"bottom",
-	"front",
-	"back",
-	"left",
-	"right",
-];
-
 
 redstoneAPI.getSides = function(L) {
 	C.lua_newtable(L);
-	for (var i in sides) {
-		C.lua_pushnumber(L, i + 1);
-		C.lua_pushstring(L, sides[i].toString());
+	for (var i in globals.sides) {
+		C.lua_pushnumber(L, parseInt(i) + 1);
+		C.lua_pushstring(L, globals.sides[i].toString());
 		C.lua_rawset(L, -3);
 	}
 

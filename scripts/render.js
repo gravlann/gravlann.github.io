@@ -1,8 +1,8 @@
 
-//  
-//  Mimic
-//  Made by 1lann and GravityScore
-//  
+//
+//  render.js
+//  GravityScore and 1lann
+//
 
 
 
@@ -15,22 +15,31 @@ var overlayContext = overlayCanvas.getContext("2d");
 var render = {};
 var font;
 
-var characters = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-var charactersPerLine = 16;
-var lineYOffset = 2;
+
+var characters =
+	" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMN" +
+	"OPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+
+var CHARACTERS_PER_LINE = 16;
+var LINE_Y_OFFSET = 2;
 
 
 
-//  ------------------------
+//
 //    Setup
-//  ------------------------
+//
 
 
 render.setup = function(callback) {
 	context.imageSmoothingEnabled = false;
+	context.webkitImageSmoothingEnabled = false;
+	context.mozIageSmoothingEnabled = false;
 	overlayContext.imageSmoothingEnabled = false;
+	overlayContext.webkitImageSmoothingEnabled = false;
+	overlayContext.mozImageSmoothingEnabled = false;
+
 	font = new Image();
-	font.src = "fonts/font.png";
+	font.src = globals.paths.font;
 	font.onload = function() {
 		callback();
 	}
@@ -38,9 +47,9 @@ render.setup = function(callback) {
 
 
 
-//  ------------------------
-//    Characters
-//  ------------------------
+//
+//    Individual Cells
+//
 
 
 render.characterBackground = function(x, y, color, ctx) {
@@ -50,11 +59,13 @@ render.characterBackground = function(x, y, color, ctx) {
 
 	var computer = core.getActiveComputer();
 	if (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height) {
-		var cellX = ((x - 1) * config.cellWidth + config.borderWidth);
-		var cellY = ((y - 1) * config.cellHeight + config.borderHeight);
+		var actualWidth = config.cellWidth * config.terminalScale;
+		var actualHeight = config.cellHeight * config.terminalScale;
+		var cellX = ((x - 1) * actualWidth + config.borderWidth);
+		var cellY = ((y - 1) * actualHeight + config.borderHeight);
 
 		ctx.beginPath();
-		ctx.rect(cellX, cellY, config.cellWidth + 0.25, config.cellHeight);
+		ctx.rect(cellX, cellY, actualWidth, actualHeight);
 		ctx.fillStyle = globals.colors[color];
 		ctx.fill();
 	}
@@ -78,8 +89,8 @@ render.characterText = function(x, y, text, color, ctx) {
 			var imgH = font.height / 16 / 16;
 			var startY = parseInt(color, 16) * (font.height / 16);
 
-			var imgX = loc % charactersPerLine;
-			var imgY = (loc - imgX) / charactersPerLine + lineYOffset;
+			var imgX = loc % CHARACTERS_PER_LINE;
+			var imgY = (loc - imgX) / CHARACTERS_PER_LINE + LINE_Y_OFFSET;
 			imgX *= imgW;
 			imgY *= imgH;
 			imgY += startY;
@@ -89,10 +100,16 @@ render.characterText = function(x, y, text, color, ctx) {
 				offset -= 1;
 			}
 
-			var textX = (x - 1) * config.cellWidth + config.borderWidth + offset;
-			var textY = (y - 1) * config.cellHeight + config.borderHeight + 1;
+			var actualWidth = config.cellWidth * config.terminalScale;
+			var actualHeight = config.cellHeight * config.terminalScale;
+			var textX = (x - 1) * actualWidth + config.borderWidth + offset;
+			var textY = (y - 1) * actualHeight + config.borderHeight + 1;
 
-			ctx.drawImage(font, imgX, imgY, imgW, imgH, textX, textY, imgW, imgH);
+			var scaledImgWidth = imgW * config.terminalScale;
+			var scaledImgHeight = imgH * config.terminalScale;
+
+			ctx.drawImage(font, imgX, imgY, imgW, imgH, textX, textY,
+				scaledImgWidth, scaledImgHeight);
 		}
 	}
 }
@@ -117,9 +134,9 @@ render.character = function(x, y, text, foreground, background, ctx) {
 
 
 
-//  ------------------------
-//    Rendering
-//  ------------------------
+//
+//    Multiple Cells
+//
 
 
 render.border = function(color) {
@@ -177,7 +194,7 @@ render.text = function(x, y, text, foreground, background, ctx) {
 }
 
 
-render.textCentred = function(y, text, foreground, background, ctx) {
+render.centredText = function(y, text, foreground, background, ctx) {
 	var computer = core.getActiveComputer();
 	var x = Math.floor(computer.width / 2 - text.length / 2);
 	render.text(x, y, text, foreground, background, ctx);
@@ -185,9 +202,9 @@ render.textCentred = function(y, text, foreground, background, ctx) {
 
 
 
-//  ------------------------
+//
 //    Cursor
-//  ------------------------
+//
 
 
 render.cursorBlink = function() {
@@ -195,7 +212,12 @@ render.cursorBlink = function() {
 
 	if (computer.cursor.blink && core.cursorFlash) {
 		overlayContext.clearRect(0, 0, canvas.width, canvas.height);
-		render.text(computer.cursor.x, computer.cursor.y, "_", computer.colors.foreground, undefined, overlayContext);
+
+		var x = computer.cursor.x;
+		var y = computer.cursor.y;
+		var color = computer.colors.foreground;
+
+		render.text(x, y, "_", color, undefined, overlayContext);
 	} else {
 		overlayContext.clearRect(0, 0, canvas.width, canvas.height);
 	}
@@ -203,9 +225,9 @@ render.cursorBlink = function() {
 
 
 
-//  ------------------------
-//    Displays
-//  ------------------------
+//
+//    Blue Screen of Death
+//
 
 
 render.bsod = function(title, lines) {
@@ -216,11 +238,12 @@ render.bsod = function(title, lines) {
 	render.cursorBlink();
 
 	render.clearLine(5, "f", "f");
-	render.textCentred(5, title, "4", "f");
+	render.centredText(5, title, "4", "f");
 
 	for (var i in lines) {
 		var line = lines[i];
-		render.textCentred(9 + parseInt(i), line, "f", "4");
+		render.centredText(9 + parseInt(i), line, "f", "4");
 	}
-	render.textCentred(9 + lines.length+1, "Press enter to reboot the computer...", "f", "4");
+
+	render.centredText(10 + lines.length, "Press enter to reboot the computer...", "f", "4");
 }

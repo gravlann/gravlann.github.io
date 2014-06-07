@@ -1,8 +1,8 @@
 
-//  
-//  Mimic
-//  Made by 1lann and GravityScore
-//  
+//
+//  peripheral.js
+//  GravityScore and 1lann
+//
 
 
 

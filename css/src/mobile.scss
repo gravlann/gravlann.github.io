@@ -1,0 +1,39 @@
+
+//
+//  Mobile
+//  Mimic
+//
+
+
+
+$mobile-min-width: 768px;
+
+
+
+#mobile-input {
+	z-index: -1;
+
+	position: fixed;
+	height: 350px;
+	width: 4px;
+
+	background: none;
+
+	left: -100px;
+	top: 160px;
+}
+
+
+@media (max-width: $mobile-min-width) {
+	#file-list {
+		display: none;
+	}
+
+	.computer-options {
+		display: none;
+	}
+
+	.computer-tab-bar {
+		display: none;
+	}
+}

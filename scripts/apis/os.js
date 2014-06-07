@@ -1,22 +1,18 @@
 
-//  
-//  Mimic
-//  Made by 1lann and GravityScore
-//  
+//
+//  os.js
+//  GravityScore and 1lann
+//
 
 
 
 var osAPI = {};
 
 
-osAPI.triggerBiosCrash = function(L) {
-	throw new Error("BIOS Crash");
-}
 
-
-osAPI.setAlarm = function(L) {
-
-}
+//
+//    Computer Information
+//
 
 
 osAPI.getComputerID = function(L) {
@@ -37,6 +33,10 @@ osAPI.getComputerLabel = function(L) {
 }
 
 
+osAPI.computerLabel = osAPI.getComputerLabel;
+osAPI.computerID = osAPI.getComputerID;
+
+
 osAPI.setComputerLabel = function(L) {
 	var computer = core.getActiveComputer();
 	var str = C.luaL_checkstring(L, 1);
@@ -44,6 +44,12 @@ osAPI.setComputerLabel = function(L) {
 
 	return 0;
 }
+
+
+
+//
+//    Time
+//
 
 
 osAPI.clock = function(L) {
@@ -98,6 +104,17 @@ osAPI.startTimer = function(L) {
 }
 
 
+osAPI.setAlarm = function(L) {
+
+}
+
+
+
+//
+//    Event Handling
+//
+
+
 osAPI.queueEvent = function(L) {
 	var computer = core.getActiveComputer();
 	var queueObject = [];
@@ -134,7 +151,3 @@ osAPI.reboot = function(L) {
 	computer.shouldReboot = true;
 	return 0;
 }
-
-
-osAPI["computerLabel"] = osAPI["getComputerLabel"];
-osAPI["computerID"] = osAPI["getComputerID"];

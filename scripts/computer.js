@@ -1,14 +1,14 @@
 
-//  
-//  Mimic
-//  Made by 1lann and GravityScore
-//  
+//
+//  computer.js
+//  GravityScore and 1lann
+//
 
 
 
-//  ------------------------
-//    Initialization
-//  ------------------------
+//
+//    Setup
+//
 
 
 var Computer = function(id, advanced) {
@@ -55,9 +55,17 @@ Computer.prototype.reset = function() {
 
 
 
-//  ------------------------
+//
 //    APIs
-//  ------------------------
+//
+
+
+Computer.prototype.installStartupScript = function(contents) {
+	if (typeof(contents) == "string") {
+		C.lua_pushstring(this.L, contents);
+		C.lua_setglobal(this.L, "startupScript");
+	}
+}
 
 
 Computer.prototype.installAPIs = function() {
@@ -92,13 +100,17 @@ Computer.prototype.installAPIs = function() {
 			C.lua_setglobal(this.L, api);
 		}
 	}
+
+	if (typeof(core.startupScript) != "undefined") {
+		this.installStartupScript(core.startupScript);
+	}
 }
 
 
 
-//  ------------------------
+//
 //    Lua Thread
-//  ------------------------
+//
 
 
 Computer.prototype.launch = function() {
@@ -122,96 +134,113 @@ Computer.prototype.launch = function() {
 		console.log("Thread closed");
 		thread.alive = false;
 
-		render.bsod("FATAL : BIOS ERROR", ["Error: " + errorCode, "Check the console for more details"]);
+		render.bsod(
+			"FATAL : BIOS ERROR",
+			["Error: " + errorCode, "Check the console for more details"]);
 		this.hasErrored = true;
 	}
 }
 
 
-Computer.prototype.resume = function() {
-	var computer = this;
+Computer.prototype.pushEventStackToThread = function() {
+	for (var i in this.eventStack[0]) {
+		var argument = this.eventStack[0][i];
 
-	var threadLoopID = setInterval(function() {
-		var stackRuns = 0;
-		for (i = 1; i <= computer.eventStack.length; i++) {
-			stackRuns++;
-			if (stackRuns > 256) {
+		if (typeof(argument) == "string") {
+			C.lua_pushstring(this.thread, argument);
+		} else if (typeof(argument) == "number") {
+			C.lua_pushnumber(this.thread, argument);
+		} else if (typeof(argument) == "boolean") {
+			C.lua_pushboolean(this.thread, argument ? 1 : 0);
+		} else if (typeof(argument) == "object") {
+			C.lua_pushstring(this.thread, core.serializeTable(argument));
+		} else {
+			C.lua_pushstring(this.thread, argument.toString());
+		}
+	}
+}
+
+
+Computer.prototype.handleResumeResult = function(result, threadLoopID) {
+	if (result == C.LUA_YIELD) {
+		if (this.shouldShutdown) {
+			this.shutdown();
+		} else if (this.shouldReboot) {
+			this.reboot();
+		}
+	} else if (result == 0) {
+		clearInterval(threadLoopID);
+		this.alive = false;
+	} else {
+		clearInterval(threadLoopID);
+		this.alive = false;
+
+		if (!this.hasErrored) {
+			render.bsod("FATAL : THREAD CRASH",
+				["The Lua thread has crashed!",
+				"Check the console for more details"]);
+			this.hasErrored = true;
+		}
+
+		console.log("Error: ", C.lua_tostring(this.thread, -1));
+	}
+}
+
+
+Computer.prototype.pushEventStack = function(threadLoopID) {
+	var stackRuns = 0;
+
+	for (var i = 1; i <= this.eventStack.length; i++) {
+		stackRuns++;
+		if (stackRuns > 256 || !this.alive) {
+			return;
+		}
+
+		if (this.eventStack.length == 0) {
+			clearInterval(threadLoopID);
+			continue;
+		}
+
+		var argumentCount = this.eventStack[0].length;
+		this.pushEventStackToThread();
+
+		this.eventStack.splice(0, 1);
+		this.coroutineClock = Date.now();
+
+		var result;
+		try {
+			result = C.lua_resume(this.thread, argumentCount);
+		} catch (e) {
+			clearInterval(threadLoopID);
+			this.alive = false;
+
+			if (!this.hasErrored) {
+				console.log("Javascript error", e);
+				render.bsod("FATAL : JAVASCRIPT ERROR",
+					["A fatal Javascript error has occured.",
+					"Check the console for more details."]);
+				this.hasErrored = true;
 				return;
-			}
-			if (!computer.alive) {
-				return;
-			}
-
-			if (computer.eventStack.length > 0) {
-				var argumentsNumber = computer.eventStack[0].length;
-
-				for (var index in computer.eventStack[0]) {
-					var argument = computer.eventStack[0][index];
-					if (typeof(argument) == "string") {
-						C.lua_pushstring(computer.thread, argument);
-					} else if (typeof(argument) == "number") {
-						C.lua_pushnumber(computer.thread, argument);
-					} else if (typeof(argument) == "boolean") {
-						C.lua_pushboolean(computer.thread, argument ? 1 : 0);
-					} else if (typeof(argument) == "object") {
-						C.lua_pushstring(computer.thread, core.serializeTable(argument));
-					} else {
-						C.lua_pushstring(computer.thread, argument.toString());
-					}
-				}
-
-				computer.eventStack.splice(0, 1);
-				computer.coroutineClock = Date.now();
-
-				var result;
-				try {
-					result = C.lua_resume(computer.thread, argumentsNumber);
-				} catch (e) {
-					clearInterval(threadLoopID);
-					computer.alive = false;
-					if (!computer.hasErrored) {
-						console.log("Javascript error", e);
-						render.bsod("FATAL : JAVASCRIPT ERROR", 
-							["A fatal Javascript error has occured.", 
-							"Check the console for more details."]);
-						computer.hasErrored = true;
-						return;
-					}
-				}
-
-				if (result == C.LUA_YIELD) {
-					if (computer.shouldShutdown) {
-						computer.shutdown();
-					} else if (computer.shouldReboot) {
-						computer.reboot();
-					}
-				} else if (result == 0) {
-					clearInterval(threadLoopID);
-					computer.alive = false;
-
-					console.log("Program ended");
-				} else {
-					clearInterval(threadLoopID);
-					computer.alive = false;
-					if (!computer.hasErrored) {
-						render.bsod("FATAL : THREAD CRASH", 
-							["The Lua thread has crashed!", "Check the console for more details"]);
-						computer.hasErrored = true;
-					}
-					console.log("Error: ", C.lua_tostring(computer.thread, -1));
-				}
-			} else {
-				clearInterval(threadLoopID);
 			}
 		}
+
+		this.handleResumeResult(result, threadLoopID);
+	}
+}
+
+
+Computer.prototype.resume = function() {
+	var _this = this;
+	var threadLoopID = setInterval(function() {
+		_this.pushEventStack.call(_this, threadLoopID);
 	}, 10);
 }
 
 
 
-//  ------------------------
+//
 //    Termination
-//  ------------------------
+//
 
 
 Computer.prototype.shutdown = function() {
@@ -225,7 +254,7 @@ Computer.prototype.shutdown = function() {
 		C.lua_close(this.L);
 		this.L = null;
 	}
- 
+
 	this.reset();
 }
 
@@ -269,24 +298,26 @@ Computer.prototype.terminate = function() {
 
 
 
-//  ------------------------
-//    GUI
-//  ------------------------
+//
+//    Display Properties
+//
 
 
 Computer.prototype.getActualSize = function() {
-	var width = this.width * config.cellWidth + 2 * config.borderWidth;
-	var height = this.height * config.cellHeight + 2 * config.borderHeight;
+	var actualWidth = config.cellWidth * config.terminalScale;
+	var actualHeight = config.cellHeight * config.terminalScale;
+	var width = this.width * actualWidth + 2 * config.borderWidth;
+	var height = this.height * actualHeight + 2 * config.borderHeight;
 
 	return {"width": width, "height": height};
 }
 
 
 Computer.prototype.getLocation = function() {
-	var minX = 275;
+	var minX = 300;
 	var minY = 0;
 
-	if (gui.isFullscreen) {
+	if (ui.isFullscreen) {
 		minX = 0;
 	}
 

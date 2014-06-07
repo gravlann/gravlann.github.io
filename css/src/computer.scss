@@ -1,0 +1,52 @@
+
+//
+//  Computer
+//  Mimic
+//
+
+
+
+.computer-container {
+	position: fixed;
+	top: 0;
+	left: $sidebar-width;
+	bottom: 0;
+	right: 0;
+}
+
+
+#actions-pull-down-btn {
+	margin-top: 20px;
+	margin-left: 20px;
+	display: block;
+}
+
+
+#actions-pull-down {
+	margin-left: 20px;
+	margin-top: 10px;
+}
+
+
+#actions-pull-down:first-child {
+	margin-left: 0;
+}
+
+
+#exit-fullscreen {
+	margin: 20px;
+}
+
+
+#canvas, #overlay-canvas {
+	image-rendering: optimizeSpeed;
+	image-rendering: -moz-crisp-edges;
+	image-rendering: -webkit-optimize-contrast;
+	image-rendering: -o-crisp-edges;
+	image-rendering: optimize-contrast;
+	-ms-interpolation-mode: nearest-neighbor;
+
+	position: fixed;
+	top: 0;
+	left: $sidebar-width;
+}

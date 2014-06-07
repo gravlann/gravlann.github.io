@@ -1,0 +1,20 @@
+
+To Refactor
+- filesystem.copy
+- http.request
+
+
+To Do
+- Add grey border around computer
+- Add ROM programs
+- Add support for http.post
+- Add simulated restone API
+- Add a favicon.ico
+- Add max storage size limit
+
+- Fix startup scripts, allow use of shell API
+- Fix file downloading all previous files multiple times
+- Fix screenshot lagging
+- Fix files destroying newlines at EOF
+
+- Update forum post

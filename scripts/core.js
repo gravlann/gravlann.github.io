@@ -1,22 +1,19 @@
 
-//  
-//  Mimic
-//  Made by 1lann and GravityScore
-//  
+//
+//  core.js
+//  GravityScore and 1lann
+//
 
 
 
-var core = {
-	"computers": [],
-};
-
+var core = {};
 var C = Lua5_1.C;
 
 
 
-//  ------------------------
+//
 //    Utilities
-//  ------------------------
+//
 
 
 String.prototype.repeat = function(num) {
@@ -24,13 +21,16 @@ String.prototype.repeat = function(num) {
 }
 
 
-core.serializeTable = function(arr) {
+core.serializeTable = function(table) {
 	var construct = "{";
-	for (var index in arr) {
-		var name = arr[index].replace("\"", "\\\"");
-		var correctIndex = parseInt(index) + 1;
-		construct = construct + "[" + correctIndex.toString() + "]=\"" + name + "\",";
+
+	for (var i in table) {
+		var name = table[i].replace("\"", "\\\"");
+		var index = (parseInt(i) + 1).toString;
+
+		construct += "[" + index + "]=\"" + name + "\",";
 	}
+
 	construct = construct + "}";
 
 	return construct;
@@ -38,66 +38,60 @@ core.serializeTable = function(arr) {
 
 
 
-//  ------------------------
-//    Computer Management
-//  ------------------------
+//
+//    Computers
+//
 
 
 core.createComputer = function(id, advanced) {
 	var computer = new Computer(id, advanced);
 	core.computers.push(computer);
-
-	sidebar.update();
-
-	if (core.onRunCallback) {
-		core.onRunCallback();
-		core.onRunCallback = undefined;
-	}
-
-	computer.launch();
 }
 
 
 core.getActiveComputer = function() {
-	return core.computers[0];
+	if (core.computers) {
+		return core.computers[0];
+	} else {
+		return undefined;
+	}
 }
 
 
 
-//  ------------------------
-//    Main
-//  ------------------------
+//
+//    Startup Script
+//
 
 
-core.run = function() {
-	core.createComputer(0, true);
+core.fetchStartupScriptURL = function() {
+	var paste = $.url().param("pastebin");
+	var file = $.url().param("url");
+
+	var url;
+
+	if (typeof(paste) != "undefined") {
+		url = "http://pastebin.com/raw.php?i=" + paste;
+	} else if (typeof(file) != "undefined") {
+		url = file;
+	}
+
+	return url;
 }
 
 
 core.loadStartupScript = function(callback) {
-	var pastebinID = $.url().param("pastebin");
-	var urlFile = $.url().param("url");
-	var url = "";
+	var url = core.fetchStartupScriptURL();
 
-	if (typeof(pastebinID) != "undefined") {
-		url = "http://pastebin.com/raw.php?i=" + pastebinID;
-	} else if (typeof(urlFile) != "undefined") {
-		url = urlFile;
-	}
-
-	if (url.length > 0) {
+	if (url && url.length > 0) {
 		var request = new xdRequest();
 		request.setURL(url);
 		request.get(function(response) {
 			if (response.status == "200") {
-				if (filesystem.exists("/computers/0/startup")) {
-					filesystem.move("/computers/0/startup", "/computers/0/startup_old");
-				}
-
-				filesystem.write("/computers/0/startup", response.html);
+				core.startupScript = response.html;
 			} else {
 				console.log("Failed to load startup script");
-				console.log("From URL: ", url);
+				console.log("Server responded with status code " + response.status);
 				alert("Failed to fetch statup script!");
 			}
 
@@ -109,32 +103,45 @@ core.loadStartupScript = function(callback) {
 }
 
 
-core.setup = function(onLoadCallback, completeCallback) {
-	filesystem.setup(function() {
-		core.loadStartupScript(function() {
-			render.setup(function() {
-				onLoadCallback();
 
-				core.computers = [];
+//
+//    Main
+//
 
-				core.cursorFlash = false;
-				setInterval(function() {
-					core.cursorFlash = !core.cursorFlash;
-					render.cursorBlink();
-				}, 500);
 
-				completeCallback();
-			});
-		});
-	});
+core.setupCursorFlash = function() {
+	core.cursorFlash = false;
+	setInterval(function() {
+		core.cursorFlash = !core.cursorFlash;
+		render.cursorBlink();
+	}, 500);
 }
 
 
-core.main = function(options) {
-	var onLoadCallback = options.onLoad || function() {};
-	core.onRunCallback = options.onRun || function() {};
+core.afterSetup = function() {
+	ui.onLoad();
 
-	core.setup(onLoadCallback, function() {
-		core.run();
+	core.setupCursorFlash();
+
+	core.computers = [];
+	core.createComputer(0, true);
+	ui.afterLoad();
+
+	core.computers[0].launch();
+}
+
+
+core.run = function() {
+	// Load:
+	//  1. Filesystem
+	//  2. Startup script
+	//  3. Rendering
+	//  4. Cursor flash
+	//  5. Computer
+
+	filesystem.setup(function() {
+		core.loadStartupScript(function() {
+			render.setup(core.afterSetup);
+		});
 	});
 }

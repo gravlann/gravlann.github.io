@@ -1,8 +1,9 @@
 
-//  
-//  Mimic
-//  Made by 1lann and GravityScore
-//  
+//
+//  filesystem.js
+//  GravityScore and 1lann
+//
+
 
 
 var fs;
@@ -12,22 +13,23 @@ var computerFilesystem = {};
 
 
 
-//  ------------------------
+//
 //    Setup
-//  ------------------------
+//
 
 
 filesystem.setup = function(callback) {
 	BrowserFS.install(window);
 
 	var request = new XMLHttpRequest();
-	request.open("GET", "lua/rom.zip", true);
+	request.open("GET", globals.paths.rom, true);
 	request.responseType = "arraybuffer";
 
 	request.onload = function(evt) {
 		if (!request.response) {
 			console.log("Failed to load ComputerCraft rom!");
 			console.log("Error: ", evt);
+			alert("Failed to download rom files!")
 			return;
 		}
 
@@ -47,9 +49,9 @@ filesystem.setup = function(callback) {
 
 
 
-//  ------------------------
+//
 //    Basic Utilities
-//  ------------------------
+//
 
 
 filesystem.format = function(path) {
@@ -58,9 +60,7 @@ filesystem.format = function(path) {
 		path = "/" + path;
 	}
 
-	if (path.substring(path.length - 1) == "/") {
-		path = path.substring(0, path.length - 1);
-	}
+	path = path.replace(/\/+$/, "");
 
 	if (path.length == 0) {
 		path = "/";
@@ -120,9 +120,9 @@ filesystem.getContainingFolder = function(path) {
 
 
 
-//  ------------------------
+//
 //    Raw Filesystem
-//  ------------------------
+//
 
 //  These functions do not resolve the path to a particular computer
 //  They operate on absolute file paths starting from the actual root
@@ -130,7 +130,7 @@ filesystem.getContainingFolder = function(path) {
 
 
 
-//  -------  Query
+//    Query
 
 
 filesystem.list = function(path) {
@@ -177,44 +177,6 @@ filesystem.listRecursively = function(path, includeDirectories) {
 }
 
 
-filesystem.listHierarchically = function(path, id) {
-	id = typeof(id) == "undefined" ? 0 : id;
-	path = filesystem.sanitise(path);
-
-	var files = [];
-	var contents = filesystem.list(path);
-	for (var i in contents) {
-		var filePath = path + "/" + contents[i];
-		if (filePath.substring(0, 2) == "//") {
-			filePath = filePath.substring(1);
-		}
-
-		if (filesystem.isDir(filePath)) {
-			var children = filesystem.listHierarchically(filePath, id);
-			id = children.id;
-			files.push({
-				"id": id,
-				"name": contents[i],
-				"path": filePath,
-				"type": "folder",
-				"children": children.files,
-			});
-		} else {
-			files.push({
-				"id": id,
-				"name": contents[i],
-				"path": filePath,
-				"type": "file",
-			});
-		}
-
-		id += 1;
-	}
-
-	return {"files": files, "id": id};
-}
-
-
 filesystem.exists = function(path) {
 	path = filesystem.sanitise(path);
 	return fs.existsSync(path);
@@ -240,7 +202,7 @@ filesystem.isDir = function(path) {
 
 
 
-//  -------  Modification
+//    Modification
 
 
 filesystem.read = function(path) {
@@ -324,6 +286,8 @@ filesystem.makeDir = function(path, mode, position) {
 filesystem.delete = function(path) {
 	path = filesystem.sanitise(path);
 
+	var success = false;
+
 	if (path != "/") {
 		if (filesystem.isDir(path)) {
 			var fileList = filesystem.listRecursively(path, true);
@@ -344,21 +308,19 @@ filesystem.delete = function(path) {
 			}
 
 			fs.rmdirSync(path);
-			return true;
 		} else if (filesystem.exists(path)) {
 			fs.unlinkSync(path);
-			return true;
-		} else {
-			return true;
 		}
-	} else {
-		return false;
+
+		success = true;
 	}
+
+	return success;
 }
 
 
 
-//  -------  File Manipulation
+//    File Manipulation
 
 
 filesystem.copy = function(from, to) {
@@ -370,21 +332,22 @@ filesystem.copy = function(from, to) {
 	}
 
 	var success = false;
-	
+
 	if (filesystem.isDir(to)) {
-		if (to == from && filesystem.exists(computerFilesystem.resolve("/" + filesystem.getName(from)))) {
-			
+		var locallyResolved = computerFilesystem.resolve("/" + filesystem.getName(from));
+		if (to == from && filesystem.exists(locallyResolved)) {
+
 		} else if (filesystem.isDir(from)) {
 			if (filesystem.exists(to + "/" + filesystem.getName(from))) {
-				
+
 			} else if (to == "/" && filesystem.exists("/" + filesystem.getName(from))) {
-				
+
 			} else {
 				var fileList = filesystem.listRecursively(from, true);
 				for (var i in fileList) {
 					if (!filesystem.isDir(fileList[i])) {
 						var fileName = filesystem.getName(from) + "/" + fileList[i].substring(from.length);
-						filesystem.write(to+"/"+fileName, filesystem.read(fileList[i]));
+						filesystem.write(to + "/" + fileName, filesystem.read(fileList[i]));
 					}
 				}
 
@@ -415,19 +378,34 @@ filesystem.copy = function(from, to) {
 }
 
 
+filesystem.move = function(from, to) {
+	var success = false;
+
+	if (filesystem.copy(from, to)) {
+		if (filesystem.delete(from)) {
+			sidebar.update();
+			success = true;
+		} else {
+			filesystem.delete(to);
+		}
+	}
+
+	return success;
+}
 
 
-//  ------------------------
+
+//
 //    Computer Specific Filesystem
-//  ------------------------
+//
 
 //  These functions use the current computer ID to resolve paths for
 //  a particular computer
-//  - Mounts the rom folder
-//  - Checks for read only
+// Mounts the rom folder
+// Checks for read only
 
 
-//  -------  Utilities
+//    Utilities
 
 
 computerFilesystem.resolve = function(path, computerID) {
@@ -470,7 +448,7 @@ computerFilesystem.createRoot = function() {
 
 
 
-//  -------  Query
+//    Query
 
 
 computerFilesystem.list = function(path) {
@@ -498,7 +476,7 @@ computerFilesystem.isDir = function(path) {
 
 
 
-//  -------  Modification
+//    Modification
 
 
 computerFilesystem.read = function(path) {
@@ -568,24 +546,14 @@ computerFilesystem.delete = function(path) {
 
 
 
-//  -------  File Manipulation
+//    File Manipulation
 
 
 computerFilesystem.move = function(from, to) {
 	from = computerFilesystem.resolve(from);
 	to = computerFilesystem.resolve(to);
 
-	var success = false;
-	if (filesystem.copy(from, to)) {
-		if (filesystem.delete(from)) {
-			success = true;
-		} else {
-			filesystem.delete(to);
-		}
-	}
-	
-	sidebar.update();
-	return success;
+	return filesystem.move(from, to)
 }
 
 

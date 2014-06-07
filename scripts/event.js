@@ -1,8 +1,8 @@
 
-//  
-//  Mimic
-//  Made by 1lann and GravityScore
-//  
+//
+//  event.js
+//  GravityScore and 1lann
+//
 
 
 
@@ -21,13 +21,84 @@ var events = {
 
 
 
-//  ------------------------
+//
 //    Key Events
-//  ------------------------
+//
+
+
+events.paste = function(computer) {
+	events.pasting = true;
+
+	var captureField = $("#mobile-input");
+	captureField.val("");
+	captureField.focus();
+
+	setTimeout(function() {
+		var pasted = captureField.val();
+		captureField.val(">");
+
+		for (var i = 0; i < pasted.length; i++) {
+			var letter = pasted[i];
+			var keyCode = parseInt(globals.charCodes[letter]);
+			var code = globals.keyCodes[keyCode];
+
+			if (typeof(code) != "undefined") {
+				computer.eventStack.push(["key", code]);
+			}
+
+			if (typeof(letter) != "undefined") {
+				computer.eventStack.push(["char", letter]);
+			}
+		}
+
+		captureField.blur();
+
+		if (pasted.length > 0) {
+			computer.resume();
+		}
+
+		events.pasting = false;
+	}, 20);
+}
+
+
+events.activateTrigger = function(computer, character) {
+	var triggerDuration = 1000;
+	var triggers = {
+		"r": computer.reboot,
+		"s": computer.shutdown,
+		"t": computer.terminate,
+	};
+
+	for (var triggerKey in triggers) {
+		if (character == triggerKey) {
+			var func = triggers[triggerKey];
+
+			events.triggerKey = character;
+			events.triggerKeyTimerID = setTimeout(function() {
+				func.call(computer);
+				events.triggerKeyTimerID = null;
+			}, triggerDuration);
+		}
+	}
+}
+
+
+events.pushKey = function(computer, character, code) {
+	if (typeof(code) != "undefined") {
+		computer.eventStack.push(["key", code]);
+	} if (typeof(character) != "undefined") {
+		computer.eventStack.push(["char", character]);
+	}
+
+	if (computer.eventStack.length > 0) {
+		computer.resume();
+	}
+}
 
 
 window.onkeydown = function(event) {
-	if (!gui.computerSelected || gui.popupOpen) {
+	if (sidebar.typeOfSelected() != "computer" || isTouchDevice()) {
 		return;
 	}
 
@@ -41,88 +112,32 @@ window.onkeydown = function(event) {
 		return;
 	}
 
-	if (isTouchDevice()) {
-		return;
-	}
-
 	var code = parseInt(globals.keyCodes[event.keyCode]);
 	var character = globals.characters.noshift[event.keyCode];
 	if (event.shiftKey) {
 		character = globals.characters.shift[event.keyCode];
 	}
 
-	if ((event.ctrlKey || event.metaKey) && character && character.toLowerCase() == "v") {
-		events.pasting = true;
+	var shouldActivateTrigger = event.ctrlKey && character && !events.triggerKeyTimerID;
+	var shouldPaste =
+		(event.ctrlKey || event.metaKey) &&
+		character &&
+		character.toLowerCase() == "v";
 
-		var captureField = $("#paste-capture");
-		captureField.focus();
-
-		setTimeout(function() {
-			var pasted = captureField.val();
-			captureField.val("");
-
-			for (var i = 0; i < pasted.length; i++) {
-				var letter = pasted[i];
-				var keyCode = parseInt(globals.charCodes[letter]);
-				var code = globals.keyCodes[keyCode];
-
-				if (typeof(code) != "undefined") {
-					computer.eventStack.push(["key", code]);
-				}
-
-				if (typeof(letter) != "undefined") {
-					computer.eventStack.push(["char", letter]);
-				}
-			}
-
-			captureField.blur();
-
-			if (pasted.length > 0) {
-				computer.resume();
-			}
-
-			events.pasting = false;
-		}, 10);
-	} else if (event.ctrlKey && character && character == "r" && !events.triggerKeyTimerID) {
-		events.triggerKeyTimerID = setTimeout(function() {
-			computer.reboot();
-			events.triggerKeyTimerID = null;
-		}, 1000);
-
-		events.triggerKey = "r";
-	} else if (event.ctrlKey && character && character == "s" && !events.triggerKeyTimerID) {
-		events.triggerKeyTimerID = setTimeout(function() {
-			computer.shutdown();
-			events.triggerKeyTimerID = null;
-		}, 1000);
-
-		events.triggerKey = "s";
-	} else if (event.ctrlKey && character && character == "t" && !events.triggerKeyTimerID) {
-		events.triggerKeyTimerID = setTimeout(function() {
-			computer.terminate();
-			events.triggerKeyTimerID = null;
-		}, 1000);
-
-		events.triggerKey = "t";
+	if (shouldPaste) {
+		events.paste(computer);
+	} else if (shouldActivateTrigger) {
+		events.activateTrigger(computer, character);
 	} else if (!events.triggerKeyTimerID) {
-		var pushedSomething = false;
-
-		if (typeof(code) != "undefined") {
-			computer.eventStack.push(["key", code]);
-			pushedSomething = true;
-		}
-
-		if (typeof(character) != "undefined") {
-			computer.eventStack.push(["char", character]);
-			pushedSomething = true;
-		}
-
-		if (pushedSomething) {
-			computer.resume();
-		}
+		events.pushKey(computer, character, code);
 	}
 
-	if (!events.pasting && (event.keyCode == 8 || event.keyCode == 86 || event.keyCode == 9)) {
+	var shouldCancelKey =
+		event.keyCode == 8 ||
+		event.keyCode == 86 ||
+		event.keyCode == 9;
+
+	if (!events.pasting && shouldCancelKey) {
 		event.preventDefault();
 	}
 }
@@ -139,13 +154,13 @@ window.onkeyup = function(event) {
 
 
 
-//  ------------------------
+//
 //    Mouse Events
-//  ------------------------
+//
 
 
 window.onmousedown = function(event) {
-	if (!gui.computerSelected || gui.popupOpen) {
+	if (sidebar.typeOfSelected() != "computer") {
 		return;
 	}
 
@@ -155,23 +170,32 @@ window.onmousedown = function(event) {
 
 	if (typeof(computer) != "undefined") {
 		var loc = computer.getLocation();
-		var button = globals.buttons["click " + event.button] + 1;
+		var button = globals.buttons[event.button];
 		var x, y;
 		var size = computer.getActualSize();
 		var ratio = size.height / size.width;
 
+		var localised = {
+			"x": (event.pageX - config.borderWidth - loc.x),
+			"y": (event.pageY - config.borderHeight - loc.y),
+			"w": (config.cellWidth * (window.innerWidth / size.width)),
+			"h": (config.cellHeight * (window.innerWidth * ratio / size.height)),
+		}
+
 		if ((window.innerWidth < size.width) || (window.innerWidth * ratio < size.height)) {
-			x = Math.floor((event.pageX - config.borderWidth - loc.x) / (config.cellWidth * (window.innerWidth / size.width))) + 1;
-			y = Math.floor((event.pageY - config.borderHeight - loc.y) / (config.cellHeight * (window.innerWidth * ratio / size.height))) + 1;
+			x = Math.floor(localised.x / localised.w) + 1;
+			y = Math.floor(localised.y / localised.h) + 1;
 		} else {
-			x = Math.floor((event.pageX - config.borderWidth - loc.x) / (config.cellWidth)) + 1;
-			y = Math.floor((event.pageY - config.borderHeight - loc.y) / (config.cellHeight)) + 1;
+			x = Math.floor(localised.x / (config.cellWidth)) + 1;
+			y = Math.floor(localised.y / (config.cellHeight)) + 1;
 		}
 
 		if (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height) {
 			computer.eventStack.push(["mouse_click", button, x, y]);
 			computer.resume();
 		}
+
+		event.preventDefault();
 	}
 }
 
@@ -182,7 +206,7 @@ window.onmouseup = function(event) {
 
 
 window.onmousemove = function(event) {
-	if (!gui.computerSelected || gui.popupOpen) {
+	if (sidebar.typeOfSelected() != "computer") {
 		return;
 	}
 
@@ -190,32 +214,38 @@ window.onmousemove = function(event) {
 
 	if (typeof(computer) != "undefined") {
 		var loc = computer.getLocation();
-		var x = Math.floor((event.pageX - config.borderWidth - loc.x) / config.cellWidth) + 1;
-		var y = Math.floor((event.pageY - config.borderHeight - loc.y) / config.cellHeight) + 1;
-		var button = globals.buttons["click " + event.button];
 
-		if (events.mouseDown
-				&& (events.prevMouseState.button != button || events.prevMouseState.x != x || events.prevMouseState.y != y)
-				&& (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height)) {
+		var localised = {
+			"x": (event.pageX - config.borderWidth - loc.x),
+			"y": (event.pageY - config.borderHeight - loc.y),
+		}
+
+		var x = Math.floor(localised.x / config.cellWidth) + 1;
+		var y = Math.floor(localised.y / config.cellHeight) + 1;
+		var button = globals.buttons[event.button];
+
+		var withinBounds = (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height);
+		var differentFromPrevious =
+			events.prevMouseState.button != button ||
+			events.prevMouseState.x != x ||
+			events.prevMouseState.y != y;
+
+		if (events.mouseDown && differentFromPrevious && withinBounds) {
 			computer.eventStack.push(["mouse_drag", button, x, y]);
 			computer.resume();
 
 			events.prevMouseState.button = button;
-			events.prevMouseState.y = x;
-			events.prevMouseState.x = y;
+			events.prevMouseState.x = x;
+			events.prevMouseState.y = y;
 		}
 	}
 }
 
 
 
-//  ------------------------
+//
 //    Mobile Input
-//  ------------------------
-
-
-$("#mobile-input").val(">");
-$("#mobile-input").caret(-1);
+//
 
 
 isTouchDevice = function() {
@@ -223,61 +253,132 @@ isTouchDevice = function() {
 }
 
 
-$("#mobile-input").bind("input", function() {
+events.onMobileInput = function() {
 	if (!isTouchDevice()) {
 		return;
 	}
 
+	var input = $("#mobile-input");
 	var computer = core.getActiveComputer();
-	var mobileInput = $(this);
 
-	if (mobileInput.val().length < 1) {
-    	mobileInput.val(">");
-		mobileInput.caret(0);
+	if (typeof(computer) != "undefined") {
+		if (input.val().length < 1) {
+			input.val(">");
 
-		setTimeout(function() {
-			mobileInput.caret(-1);
-    		computer.eventStack.push(["key", 14]);
-    		computer.resume();
-		}, 5);
-	} else if ($(this).val() != ">") {
-		var textInput = mobileInput.val().substring(1);
-		mobileInput.val(">");
-		mobileInput.caret(0);
+			computer.eventStack.push(["key", 14]);
+			computer.resume();
+		} else {
+			var text = input.val().substring(1);
+			input.val(">");
 
-		setTimeout(function() {
-			mobileInput.caret(-1);
-			for (var i = 0; i < textInput.length; i++) {
-				var letter = textInput[i];
-				var keyCode = parseInt(globals.charCodes[letter]);
-				var code = globals.keyCodes[keyCode];
+			var pushedSomething = false;
+			for (var i = 0; i < text.length; i++) {
+				var letter = text[i];
+				var code = globals.keyCodes[parseInt(globals.charCodes[letter])];
 
 				if (typeof(code) != "undefined") {
 					computer.eventStack.push(["key", code]);
+					pushedSomething = true;
 				}
 
 				if (typeof(letter) != "undefined") {
 					computer.eventStack.push(["char", letter]);
+					pushedSomething = true;
 				}
 			}
 
-			computer.resume();
-		}, 5);
+			if (pushedSomething) {
+				computer.resume();
+			}
+		}
 	}
-});
+}
 
 
-$("#mobile-form").submit(function(event) {
+events.onMobileSubmit = function(event) {
 	event.preventDefault();
-	if (!isTouchDevice()) {
+
+	if (!isTouchDevice) {
 		return;
 	}
 
+	var input = $("#mobile-input");
+	input.val(">");
+
 	var computer = core.getActiveComputer();
-	var mobileInput = $("#mobile-input");
+	if (typeof(computer) != "undefined") {
+		computer.eventStack.push(["key", 28]);
+		computer.resume();
+	}
+}
 
-	mobileInput.val(">");
-	mobileInput.caret(-1);
 
-	computer.eventStack.push(["key", 28]);
+$("#overlay-canvas").click(function() {
+	$("#mobile-input").focus();
 });
+
+
+var input = $("#mobile-input");
+input.val(">");
+input.bind("input", events.onMobileInput);
+
+var form = $("#mobile-form");
+form.submit(events.onMobileSubmit);
+
+
+
+//
+//   Scrolling
+//
+
+
+var compoundScroll = 0;
+
+
+events.onmousewheel = function(e) {
+	var e = window.event || e;
+	var delta = e.wheelDelta || -e.detail * 10
+
+	if (!delta) {
+		return true;
+	}
+
+	var computer = core.getActiveComputer();
+	if (!computer) {
+		return;
+	}
+
+	var loc = computer.getLocation();
+	var x = Math.floor((e.pageX - config.borderWidth - loc.x) / config.cellWidth) + 1;
+	var y = Math.floor((e.pageY - config.borderHeight - loc.y) / config.cellHeight) + 1;
+
+	if (x >= 1 && y >= 1 && x <= computer.width && y <= computer.height) {
+		compoundScroll += delta;
+
+		var amount = Math.abs(Math.round(compoundScroll / 100));
+		if (amount != 0) {
+			if (Math.ceil(compoundScroll / 100) < 0) {
+				for (var i = 0; i <= amount; i++) {
+					computer.eventStack.push(["mouse_scroll", 1, x, y]);
+				}
+			} else {
+				for (var i = 0; i <= Math.round(compoundScroll / 100); i++) {
+					computer.eventStack.push(["mouse_scroll", -1, x, y]);
+				}
+			}
+		}
+
+		compoundScroll = compoundScroll % 100;
+		computer.resume();
+
+		e.preventDefault();
+	}
+}
+
+
+if (window.addEventListener) {
+	window.addEventListener("mousewheel", events.onmousewheel, false);
+	window.addEventListener("DOMMouseScroll", events.onmousewheel, false);
+} else {
+	window.attachEvent("onmousewheel", events.onmousewheel);
+}

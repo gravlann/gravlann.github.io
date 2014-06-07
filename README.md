@@ -3,34 +3,43 @@
 A fully featured emulator for the [Minecraft](http://minecraft.net) mod [ComputerCraft](http://computercraft.info) that runs straight in your browser.
 
 Mimic makes use of
-* [asm.js](http://asmjs.org/)
-* [Emscripten](https://github.com/kripken/emscripten)
-* [lua5.1.js](https://github.com/logiceditor-com/lua5.1.js/)
-* [Purl](https://github.com/allmarkedup/purl)
+* [Emscripten](https://github.com/kripken/emscripten) - allowing a direct port of Lua 5.1 into JavaScript
+* [asm.js](http://asmjs.org/) - the engine behind Emscripten
+* [lua5.1.js](https://github.com/logiceditor-com/lua5.1.js/) - a library built by Emscripten
+* [Jquery](http://jquery.com/) - a masterful DOM manipulation library
+* [Ace Editor](http://ace.c9.io/) - a pure JavaScript editor
+* [Bootstrap](http://getbootstrap.com/) - a CSS framework
+* [BrowserFS.js](https://github.com/jvilk/BrowserFS) - an emulation of the Node.JS filesystem API using LocalStorage and read-only ZIP backends
+* [Purl](https://github.com/allmarkedup/purl) - parsing of URL parameters
+* [PrefixFree](http://leaverou.github.io/prefixfree/) - removes the need for vendor prefixes in CSS
+* [xdRequest](https://code.google.com/p/xdrequest/) - allows cross site HTTP requests
+* [FileSaver.js Polyfill](https://github.com/eligrey/FileSaver.js) - library to download content to the computer
+* [Blob.js Polyfill](https://github.com/eligrey/Blob.js) - a FileSaver.js dependency
 * The default rom files that come with ComputerCraft
 
 
 ###Credits
 
-* Made by 1lann and GravityScore
+* Made by [GravityScore](https://github.com/GravityScore) and [1lann](https://github.com/1lann)
 * ComputerCraft by dan200 (Twitter: [@DanTwoHundred](https://twitter.com/dan200))
-* Alexander Gladysh for lua5.1.js
+* lua5.1.js by [Alexander Gladysh](https://github.com/agladysh)
 
 
 ###License
 
-Mimic is licensed under the Reciprocal The Q Public License Version (QPL-1.0)
+Mimic is licensed under The Q Public License Version (QPL-1.0)
 
 Link: [The Q Public License Version (QPL-1.0)](http://opensource.org/licenses/QPL-1.0)
 
 Mimic by GravityScore and 1lann - Copyright (c) 2014
 
 Summary of the license:
-* You may modify this software and redistrubute it under the conditions...
-* You must retain the copyright and license in any redistrubutions and modifications of this software
-* You may not charge for anything other than the data transfer costs of this software when redistrubuting
 
-Note this license does not apply for material used in Mimic that we do not own. 
+You may modify this software and redistrubute it under the conditions:
+* You must retain the copyright and license in any redistrubutions and modifications of this software.
+* You may not charge for anything other than the data transfer costs of this software when redistrubuting.
+
+Note this license does not apply for material used in Mimic that we do not own.
 
 
 ###lua5.1.js License
