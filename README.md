@@ -1,4 +1,4 @@
-#Mimic
+# Mimic
 
 A fully featured emulator for the [Minecraft](http://minecraft.net) mod [ComputerCraft](http://computercraft.info) that runs straight in your browser.
 
@@ -6,7 +6,7 @@ Mimic makes use of
 * [Emscripten](https://github.com/kripken/emscripten) - allowing a direct port of Lua 5.1 into JavaScript
 * [asm.js](http://asmjs.org/) - the engine behind Emscripten
 * [lua5.1.js](https://github.com/logiceditor-com/lua5.1.js/) - a library built by Emscripten
-* [Jquery](http://jquery.com/) - a masterful DOM manipulation library
+* [jQuery](http://jquery.com/) - a masterful DOM manipulation library
 * [Ace Editor](http://ace.c9.io/) - a pure JavaScript editor
 * [Bootstrap](http://getbootstrap.com/) - a CSS framework
 * [BrowserFS.js](https://github.com/jvilk/BrowserFS) - an emulation of the Node.JS filesystem API using LocalStorage and read-only ZIP backends
@@ -18,14 +18,14 @@ Mimic makes use of
 * The default rom files that come with ComputerCraft
 
 
-###Credits
+### Credits
 
 * Made by [GravityScore](https://github.com/GravityScore) and [1lann](https://github.com/1lann)
 * ComputerCraft by dan200 (Twitter: [@DanTwoHundred](https://twitter.com/dan200))
 * lua5.1.js by [Alexander Gladysh](https://github.com/agladysh)
 
 
-###License
+### License
 
 Mimic is licensed under The Q Public License Version (QPL-1.0)
 
@@ -42,7 +42,7 @@ You may modify this software and redistrubute it under the conditions:
 Note this license does not apply for material used in Mimic that we do not own.
 
 
-###lua5.1.js License
+### lua5.1.js License
 
 lua5.1.js is licensed under the terms of the MIT license, reproduced below.
 This means that lua5.1.js is free software and can be used for both academic
@@ -73,7 +73,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-###Emscripten License
+### Emscripten License
 
 Emscripten is licensed under the MIT license, shown above.
 
